@@ -1,0 +1,258 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\renewcommand{\H}{\mathcal{H}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{definition}
+\newtheorem*{example}{Example}
+\newtheorem{definition}[theorem]{Definition}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{4 --- Thursday Sep 11, 2014}{Fall 2014}{Prof.\ Jelani Nelson}{Marco Gentili}
+
+\section{Overview}
+
+Today we're going to talk about:
+\begin{enumerate}
+\item linear probing (show with 5-wise independence)
+\item approximate membership (bloom filters)
+\item cuckoo hashing
+\item bloomier filters (generalization of bloom filters)
+\item power of 2 choices
+\end{enumerate}
+
+\section{Linear Probing}
+Recap: We have an array of size $m=2n$. $I$ is an interval of array locations, and $L(I) = |\{ j \in S: h(j) \in I\}|$. $I$ is defined to be $full$ if $L(I) \geq |I|$.
+
+\begin{lemma}[]
+If inserting $x$ takes $k$ probes, then $h(x)$ is contained in at least $k$ full intervals.
+\end{lemma}
+\begin{proof}[Proof]
+(From last time)
+Let us define $z_1$ the position of the first empty cell on the left of
+    $h(x)$ and $z_2$ the position of the first empty cell on the right of
+    $h(x)$. It is easy to see that each of the intervals $[z_1, h(x)], [z_1,
+    h(x)+1],\ldots,[z_1, z_2-1]$ are full. There are $z_2-h(x)$ such intervals.
+    But by the assumption of the lemma, $z_2 = h(x)+ k$ which conclues the
+    proof of the lemma.
+\end{proof}
+
+From last class, we wanted to show that $\E[\text{query time}] = O(1)$ for a $7$-wise independent family of hash functions.
+
+\begin{align*}
+    \E[\text{\# of probes to \texttt{insert(x)}}]
+    &\leq \E[\text{\# of full intervals
+        containing $h(x)$}]\\
+        &\leq \sum_{k\geq 1}\sum_{\substack{|I|=k\\h(x)\in I}} \Pr(I\text{
+    full}) \leq \sum_{k\geq 1}k \max_{\substack{|I|=k\\ h(x)\in I}}\Pr(I\text{ full})
+\end{align*}
+If we can show that $\max \Pr(I \text{ is full})$ is $O\left(\frac{1}{k^3}\right)$, then the sum will converge, and then $\E[\text{query time}] = O(1)$.\\
+
+\begin{align*}
+	\Pr(I\text{ full})
+	&= \Pr(L(I)\geq |I|)\\
+	&= \Pr(L(I) \geq 2\E[L(I)])\\
+	&= \Pr((L(I) - \E[L(I)]) \geq \E[L(I)])\\
+	&\leq \Pr(|L(I) - \E[L(I)]| \geq \E[L(I)])\\
+	&= \Pr(|L(I) - \E[L(I)]|^6 \geq \E[L(I)]^6)\\
+	&\leq \E[|L(I) - \E[L(I)]|^6]/\E[L(I)]^6 \text{(Markov's Inequality)}
+\end{align*}
+
+The second equality holds since $\E[L(I)] = \frac{|I|}{2}$.
+
+Let us define $X_1,\ldots, X_n$ with $X_i = 1$ if $h(i) \in I$, 0 otherwise. Then $L(I) = \sum_{i \in S} X_i$. Substituting above, we want to bound $\E[(\sum_i X_i - \E[\sum_i X_i])^6]$. The trick for this situation is symmetrization. But first, two things: \\
+
+\begin{definition}
+    (Minkowski Distance) Define for r.v. $X$, $||X||_p = \E[|X|^p]^{1/p}$. This is a norm for $p \geq 1$.
+\end{definition}
+
+\begin{theorem}[Jensen's Inequality]
+	  If $f$ is convex, then $f(\E[X]) \leq \E[f(x)]$
+\end{theorem}
+
+\textbf{Proof Using Symmetrization}\\
+So with the above definition, we're looking at $||\sum_i X_i - \E[ \sum_i X_i ] ||_6$. We define $X_i'$ as a random variable that is independent of $X_i$ but is identical otherwise. We use the fact that
+$\E\sum X_i = \E\sum X_i'$.
+\begin{align*}
+||\sum_i X_i - \E[ \sum_i X_i ] ||_6
+&= ||\E_{X'}\sum_i (X_i - X_i') ||_6\\
+&= (\E_X(\E_{X'}(\sum (X_i - X_i'))^6))^{1/6})\\
+&\leq || \sum_i(X_i - X_i')||_6 \text{ (Jensen -- expectation over $X_i$ and $X_i'$)}\\
+&= ||\sum_i \sigma_i(X_i-X_i')||_6 \text{ ($\sigma_i = \pm 1$ are independent)}\\
+&\leq 2||\sum_i \sigma_iX_i||_6 \text{ (Minkowski) }
+\end{align*}
+
+$X_i = 1$ with probability $|I|/m = k/(2n)$ and 0 otherwise. Define $p$ to be $k/(2n)$. Then we have
+$\E[(\sum_i \sigma_iX_i)^6] = \sum_{i_1,\ldots,i_6} \E[\sigma_{i_1}\ldots\sigma_{i_6}]\E[X_{i_1}\ldots X_{i_6}]$. The only monomials that matter are those with each index appearing an even number of times,
+because any odd power of $\sigma_i$ has expectation $0$.
+
+The number of ways to select $1$, $2$, and $3$ distinct indices in this way is $n$, $2n(n-1)$, and $n(n-1)(n-2)$, respectively.
+Thus, this is dominanted by the case of three distinct items appearing twice each, giving $O(n^3p^3) = O(k^3)$. Then
+\[\Pr(I\text{ full}) \leq O(k^3)/(k/2)^6 = O(1/k^3)\]\\
+
+Then going back to the expected number of probes, we have that this is $O(\sum_{k=1}^\infty k\frac{1}{k^3})$, which is constant.
+
+In this proof we conditioned on $x$ and then had products of $6$ random variables which we expanded into the product
+of their individual probabilities. Thus, we needed $6+1=7$-wise independence. Now we will show that in fact $5$ suffices.
+
+\textbf{5-wise independence}
+
+The main trick to show that 5-wise independence is sufficient is to reason more carefully so that we don't have the additional factor of $k$ in our expression for $\E[\text{\# of probes to \texttt{insert(x)}}]$. Pagh, Pagh, Ruzic \cite{ppr} showed that 5-wise works. Patrascu and Thorup \cite{pt} showed that 4-wise is not sufficient.\\
+
+PPR Argument: We have an array of length $m=2^k$ for some integer $k$. We build a perfect binary tree over the locations in the array. We imagine that every node in the binary tree corresponds to an interval of memory locations (namely everything in its subtree). We want to union-bound over a constant number of intervals rather than $k$.\\
+
+Call a node $dangerous$ if $\geq \dfrac{3}{4} 2^h$ items hash there (height of node is $h$). We'd expect that a usual node would have $\dfrac{1}{2} 2^{h}$ items hash there.\\
+
+We adjust our lemma from before:
+\begin{lemma}[]
+If we probe $k$ slots in the array, that implies that there exists $\geq k$ full intervals containing $h(x)$ each of different length. Furthermore, the array cell immediately preceding each of these intervals is vacant.
+\end{lemma}
+
+The proof is identical -- just note that each of the $k$ intervals constructed have different lengths because we constantly shift the right endpoint while leaving the left fixed. Furthermore the left endpoint of these intervals was chosen exactly as the point immediately after the rightmost empty cell left of $h(x)$.
+
+Given $|I| = k$, look at the $\geq 4$ and $\leq 9$ nodes in the binary tree spanning $I$ at level $h-2$, where $k \in [2^h, 2^{h+1})$.\\
+
+Look at the first 4 of these nodes. Call $j^*$ the first array index in the interval. Cell $j^*$ is in the first of the 4 nodes, and everything from that location onward amongst these 4 nodes must have been hashed to $j^*$ or later (since the cell immediatley preceding $j^*$ is vacant). Thus the first 4 nodes contain $\geq 3 \cdot 2^{h-2} + 1$ items that were hashed to $j^*$ or later, which implies that one of these 4 has at least $> \dfrac{3}{4}2^{h-2}$ items hashed to it, meaning that it's $dangerous$.\\
+
+All the intervals of length $k$ containing $h(x)$ are contained in an interval of length $2k-2$. So the total number of height $h-2$ nodes used to span these intervals is $O(1)$. If there exists a full interval of length $k$ containing $h(x)$, then one of these $O(1)$ nodes of length $\geq k/8$ must be dangerous, which implies that
+\[\Pr(\exists \text{ full interval of length } k \text{ containing } h(x)) \leq O(1) \Pr(\text{length } k/8 \text{ interval is dangerous})\]
+
+Define $I'$ to be a length $k/8$ interval.
+\begin{align*}
+\Pr( \text{length } k/8 \text{ interval is dangerous})
+&\leq \Pr(L(I)' - \E[L(I')] > 1/2\E[L(I')] (|I'|/2))\\
+&\leq \dfrac{1}{(\dfrac{|I'|}{2})^4} \E[(L(I') - \E[L(I')])^4]\\
+&= O(\dfrac{1}{k^2})
+\end{align*}
+
+Here we have conditioned on $x$, and the derivations follows the same symmetrization argument,
+except now we only need $4+1 = 5$-wise independence. Returning to the sum, we have that the expected number
+of probes is $O(\sum \frac{1}{k^2})$, which is constant. Thus $5$-wise independence suffices.
+
+\section{Approximate Membership}
+\subsection{Membership Problem}
+Set $S \subseteq [u]$, and we need to maintain $S$
+\begin{itemize}
+    \item \texttt{update(x)}: $S \leftarrow S \cup \{x\}$
+    \item \texttt{query(x)}: Is $x \in S$ ?
+\end{itemize}
+
+We want to use $n$ bits of space for $n$ words. We will allow false positives. More specifically, if $x \in S$, $\Pr(\texttt{query(x)}=1) = 1$, and if $x \not \in S, \Pr( \texttt{query(x)}=1) \leq 1/2$.\\
+
+Solution: Make a bit array of length $m=2n$, where $n$ is the number of keys (pretend this is a static problem for now). Let that array be $A$. Pick a hashfunction $h: [u] \rightarrow [m]$. Set $A[h(x)]=1$ for $x \in S$.\\
+
+If $x \not \in S$,  $\Pr(\texttt{query(x)}=1) = \Pr(\exists {y \in S} \text{ s.t. } h(x)=h(y)) \leq \sum_{y \in S} \Pr(h(x) = h(y))$ by Union-Bound. $\Pr(h(x)=h(y)) = 1/m$, so $\Pr(\texttt{query(x)}=1) \leq n \dfrac{1}{m} = 1/2$.\\
+
+What if we want better bounds, say if $x \not \in S$, then $\Pr(\texttt{query(x)} = 1) < \epsilon$. What we'll do is have many copies of bit arrays of length $m$. The number of copies is $\log(1/\epsilon)$, each with its own hashfunction. For insert, set the appropriate bit from each array to 1. For search, check if all the appropriate bits are 1. This requires space $O(n\log 1/\epsilon)$ bits and time $O(\log 1/\epsilon)$. This is called a Bloom filter \cite{b}.
+
+\section{Cuckoo Hashing}
+A solution to the dynamic dictionary problem. Due to Pagh and Rodler \cite{pr}. The idea is to use two hash functions instead of just one.\\
+
+Array $A$ of length $m=c \cdot n$. We pick two hash functions $g,h$ mapping $[u]$ to $[m]$. Imagine that they're perfect, totally random hash functions.\\
+
+$\texttt{insert(x)}$:
+\begin{itemize}
+\item try put $x$ in $A[g(x)]$ (call that location $j$)
+\item if some $x'$ is there, then
+\item if $g(x') = j$, put $x'$ in $h(x')$, else if $h(x')=j$, put $x'$ in $g(x')$
+\item repeat this process until you either succeed or go on for $>10\log n$ steps, in which case rebuild the entire data structure
+\end{itemize}
+
+Goal: Show that the expected update time is $O(1)$.\\
+Analysis: Main tool is cuckoo multigraph. $m$ vertices and $n$ edges. For each $x \in S$, draw edge between $g(x)$ and $h(x)$.
+
+\section{Bloomier Filters}
+What if we want to associate an $r$ bit string with each key (retrieval problem)? Bloomier filters will be able to give you the $r$ bit string associated with a key, but won't be able to tell you the keys from the Bloomier filter itself. Due to \cite{ckrt}. Solves $r$-bit retrieval problem.
+
+To get Bloomier filter, create cuckoo hash table, and keep on recreating until we get a cuckoo graph with no cycles. Then the graph is a forest (bunch of trees). Each edge corresponds to an item. Say $x$ $owns$ its deeper node (root all the forests so that they have depth). At each node we'll store an $r$-bit string. Store 0 at the roots. Fill in $r$-bit strings in forest top down (every node gets a string).
+
+\texttt{query(x)}: output $A[g(x)] \oplus A[h(x)]$\\
+When filling in $A$ top down, put whatever value in node $v$ is necessary so that querying its owner is correct.
+
+Thorup showed how to create $k$-wise independent families very quickly \cite{t13}.
+Dietzfelbinger et al showed how to create 2-wise independent families using just bitshifting and multiplying.
+
+\bibliographystyle{alpha}
+\begin{thebibliography}{}
+
+\bibitem[PPR07]{ppr}
+Anna Pagh, Rasmus Pagh, and Milan Ruzic.
+\newblock Linear probing with constant independence.
+\newblock {\em {STOC} }, 39:318-327, 2007.
+
+\bibitem[PT10]{pt}
+Mihai Patrascu and Mikkel Thorup.
+\newblock On the \emph{k}-independence required by linear probing and minwise
+  independence.
+\newblock {\em ICALP}, pages 715--726, 2010.
+
+\bibitem[B70]{b}
+Burton H. Bloom.
+\newblock Space/Time Trade-offs in Hash Coding with Allowable Errors.
+\newblock Commun. ACM 13(7): 422-426 (1970)
+
+\bibitem[PR04]{pr}
+Rasmus Pagh, Flemming Friche Rodler.
+\newblock Cuckoo hashing.
+\newblock J. Algorithms 51(2): 122-144 (2004)
+
+\bibitem[CKRT04]{ckrt}
+Bernard Chazelle, Joe Kilian, Ronitt Rubinfeld, Ayellet Tal.
+\newblock The Bloomier filter: an efficient data structure for static support lookup tables.
+\newblock SODA 2004: 30-39
+
+\bibitem[T13]{t13}
+Mikkel Thorup
+\newblock Simple Tabulation, Fast Expanders, Double Tabulation, and High Independence
+\newblock FOCS 2013: 90-99
+
+\end{thebibliography}
+
+\end{document}

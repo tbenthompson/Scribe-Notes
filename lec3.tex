@@ -1,0 +1,361 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\renewcommand{\H}{\mathcal{H}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{definition}
+\newtheorem*{example}{Example}
+\newtheorem{definition}[theorem]{Definition}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{Lecture 3 --- Tuesday Sep 09, 2014}{Fall 2014}{Prof.\ Jelani Nelson}{Thibaut Horel}
+
+\section{Overview}
+
+In the previous lecture we finished covering data structures for the
+predecessor problem by studying Fusion Trees.
+
+In this lecture, we cover several notions related to hashing: using hashing
+for load balancing, $k$-wise independent families of hashing functions and the
+dictionary problem for which we show two solutions: chaining with linked lists
+and linear probing.
+
+\section{Hashing}
+
+In hashing, we have a family $\H$ of hashing  functions mapping $[u]$ to $[m]$
+(where $[u]$ denotes the set $\{0,\ldots, u-1\}$). For a set $S\subseteq [u]$
+with $|S| = n$, we want that $h$ picked at random in $\H$ behaves ``nicely'' on
+$S$.
+
+\begin{example}[load balancing]
+We have $n$ jobs that need to be assigned to $m$ machines and each job has a
+job ID in $[u]$. We want to evenly spread the job over the machines. We pick
+$h$ at random in a family of hashing functions $\H$. When a new job $j\in[u]$
+comes in, we assign it to machine $h(j)\in[m]$.  This is usually referred to as
+the ``balls and bins'' random process. 
+\end{example}
+
+We would like to say that $\Pr(\exists \text{ machine receiving more than
+$\frac{m}{n}$ jobs})$ is small. First, let us assume that the random variables
+$h(i)$ for $i\in [u]$ are independent. We will need the following concentration
+inequality.
+
+\begin{theorem}[Chernoff bound]
+    Let $X_1, \ldots, X_n$ be $n$ independent random variables with
+    $X_i\in\{0,1\}$. Let us write $X=\sum_{i=1}^n X_i$, then:
+    \begin{displaymath}
+        \Pr\big(X\geq (1+\delta)\E[X]\big)\leq
+        \left(\frac{e^\delta}{(1+\delta)^{1+\delta}}\right)^{\E[X]}.
+    \end{displaymath}
+\end{theorem}
+
+The Chernoff bound can be proved using Markov's inequality.
+
+\begin{lemma}[Markov's inequality]
+    Let $X$ be a nonnegative, random variable, then:
+    \begin{displaymath}
+        \forall\lambda > 0,\; \Pr (X\geq\lambda)\leq \frac{\E[X]}{\lambda}.
+    \end{displaymath}
+\end{lemma}
+
+\begin{proof}[Proof (Chernoff bound)]
+    By Markov's inequality, we have:
+    \begin{displaymath}
+        \Pr (X \geq \lambda) = \Pr\big(e^{tX} \geq
+        e^{t\lambda}\big)\leq\frac{\E\big[e^{tX}\big]}{e^{t\lambda}}.
+    \end{displaymath}
+    By independence:
+    \begin{displaymath}
+        \E\big[e^{tX}\big] = \prod_{i=1}^n\E\big[e^{tX_i}\big]
+        =\prod_{i=1}^n\big(p_ie^t+(1-p_i)\big)
+        \leq\prod_{i=1}^ne^{p_i(e^t-1)} = e^{(e^t-1)\E[X]},
+    \end{displaymath}
+    where the inequality uses $1+x\leq e^x$. We then conclude the proof by
+    choosing $\lambda = (1+\delta)\E[X]$ and $t=\log(1+\delta)$.
+\end{proof}
+
+Using the Chernoff bound, we can prove the following proposition.
+
+\begin{proposition}
+    For the balls and bins random process, with $m=n$, then for any $c > 1$:
+    \begin{displaymath}
+        \Pr\left(\exists \text{ machine with more than $\frac{c\log n}{\log\log
+            n}$ jobs}\right)
+            \leq \frac{1}{\mathrm{poly}(n)}.
+    \end{displaymath}
+\end{proposition}
+
+\begin{proof}
+    Focus on some machine $t$ and define:
+    \begin{displaymath}
+        X_i= \begin{cases}
+            1 &\text{if $h(i) = t$}\\
+            0&\text{otherwise}
+        \end{cases}
+    \end{displaymath}
+    Then, $X=\sum_{i=1}^n X_i$ is the number of jobs assigned to machine $t$
+    and $\E[X]=1$. Applying the Chernoff bound:
+    \begin{displaymath}
+        P\left(X\geq \frac{c\log n}{\log \log n}\right) \leq
+    \left(\frac{e}{c\log n/\log\log n}\right)^{\frac{c\log
+    n}{\log\log n}} = \left(\frac{e}{k}\right)^k
+    \end{displaymath}
+    where $k=\frac{c\log n}{\log \log n}$. It is easy to see that for any
+    $\eps>0$ and for $n$ large enough, $\left(\frac{e}{k}\right)^k \leq
+    \frac{1}{n^{c-\eps}}$. This
+    implies, by using a union bound:
+    \begin{displaymath}
+        \Pr(\exists\text{ overloaded machine})
+        \leq \sum_{t=1}^n \Pr (t\text{ is overloaded})
+        \leq \frac{1}{n^{c-\eps-1}}
+    \end{displaymath}
+    Chosing $\eps < c-1$ is enough to conclude the proof.
+\end{proof}
+
+We propose an alternative proof which does not rely on the Chernoff bound.
+
+\begin{proof}
+    Using union bounds:
+    \begin{align*}
+    \Pr(\exists\text{ overloaded machine})
+    &\leq n \Pr(\text{machine 1 is overloaded})\\
+    &=\Pr(\exists \text{ $k$ items mapping to machine 1})\\
+    &\leq \sum_{\substack{T\subseteq[u]\\|T|=k}} \Pr (\text{items in $T$ all
+    map to 1})\\
+    &\leq\sum_{\substack{T\subseteq[u]\\|T|=k}} \frac{1}{n^k}
+    = \frac{\binom{n}{k}}{n^k}\leq \frac{1}{k!}
+    \leq\left(\frac{1}{(k/2)}\right)^{k/2}
+\end{align*}
+and we conclude as in the previous proof.
+\end{proof}
+
+Note that the second proof does not require full independence, but only that
+sets of $k$ elements are mapped to independent random variables. This motivates
+the following definitions.
+
+\begin{definition}
+    The random variables $X_1,\ldots,X_n$ are \emph{$k$-wise independent} iff
+    for any set of indices $1\leq i_1\leq\ldots\leq i_k\leq n$, the random
+    variables $X_{i_1},\ldots,X_{i_k}$ are independent.
+\end{definition}
+
+\begin{definition}
+    A set of hash functions $\H$ is a \emph{$k$-wise independent family} iff
+    the random variables $h(0), h(1),\ldots,h(u-1)$ are $k$-wise independent
+    when $h\in\H$ is drawn uniformly at random.
+\end{definition}
+
+\begin{example}
+    The set $\H$ of all functions from $[u]$ to $[m]$ is $k$-wise independent
+    for all $k$. Note that this family of functions is impractical for many
+    applications since you need $O(u\log m)$ bits to store a totally random
+    function. For a hash table, this is already larger than the space of the
+    data structure itself, $O(n)$.
+\end{example}
+
+\begin{example}[$u=m=p$, $p$ prime] We define $\H = \big\{h: h(x)
+    = \sum_{i=0}^{k-1} a_ix^i\bmod p\big\}$ where $a_i\in\{0,\ldots,p-1\}$. By
+    using polynomial interpolation, we know that for any \mbox{$(x_1,\ldots,
+    x_k, y_1,\ldots,y_k)\in[p]^{2k}$} there exists a unique polynomial $h\in\H$
+    such that $h(x_1) = y_1,\ldots, h(x_k) = y_k$.  Since there are $p^k$
+    elements in $\H$, if $h\in\H$ is drawn uniformly at random, $\Pr(h(x_1)
+    = y_1,\ldots,h(x_k) = y_k) = 1/p^k$, which shows that $\H$ is $k$-wise
+    independent. It is also easy to see that this family is not
+    \mbox{$k+1$-wise} independent: again using polynomial interpolation, once
+    $h(x_1),\ldots,h(x_k)$ are fixed, $h(x_{k+1})$ is entirely determined.
+\end{example}
+
+\begin{example}[$u=p$, $p$ prime\footnote{In practice, we do not lose by
+    requiring $u$ to be prime. Indeed, by Bertrand's postulate, there always
+    exists a prime between $u$ and $2u$.}]
+    We define $\H = \big\{h: h(x) = \big(\sum_{i=0}^{k-1}a_i x^i \bmod p\big)
+    \bmod m\big\}$. We see that $\Pr(h(x_1) = y_1,\ldots, h(x_k) = y_k)\leq
+    \left(\frac{2}{m}\right)^k$. Note that in this example,
+    $h(x_1),\ldots,h(x_k)$ does not behave exactly like $k$ independent uniformly
+    distributed variables, but this bound is sufficient in most applications.
+\end{example}
+
+\section{Dictionary problem}
+
+This is a data structural problem with two operations:
+\begin{itemize}
+    \item \texttt{update(k,v)}: associates key $k$ with value $v$.
+    \item \texttt{query(k)}: returns value $v$ associated with key $k$ or
+        \texttt{null} if $k$ is not in the dictionary.
+\end{itemize}
+The keys and the values are assumed to live the in same universe $[u]$.
+
+\subsection{Chaining with linked lists}
+The dynamic dictionary problem can be solved by hash tables with chaining. In
+this solution the hash table is an array $A$ of size $m$. Each element in the
+array is a pointer to a linked list containing (key, value) pairs.
+
+We pick $h\in\H$ from a $2$-wise independent family. The operations on key $k$
+are made in the linked list pointed to by $A\big[h(k)\big]$.
+
+The running time of an operation on key $k$ is linear in the length of the
+linked list at $h(k)$. It is possible to show that $\E_h[\text{length of list
+at $h(k)$}]= O(1)$ if $m\geq n$.
+
+For details of the analysis, see Lecture Notes 12 from the Spring 2014 offering of CS 124, or see \cite[Section 11.2]{CLRS}.
+
+\subsection{Perfect hashing}
+
+In this problem there is some set $S\subset[u]$ where $|S| = n$, and we would like to find a hash function $h:[u]\rightarrow[m]$ (hashing into the $m$ tables of some array) which acts injectively on $S$. This was mentioned in class, but no details were given -- for the interested reader, see the lecture notes on perfect hashing from the Spring 2014 offering of CS 124, or read \cite[Section 11.5]{CLRS}, or see the original paper \cite{FKS84}.
+
+\subsection{Linear probing}
+
+In real architectures, sequential memory accesses are much faster. A solution
+to the dictionary problem with better spacial locality is \emph{linear
+probing}. In this solution, the hash table is an array $A$, but unlike the
+solution with chaining and linked lists, the values are stored directly in
+$A$. More specifically, the value associated with key $k$ is stored at $h(k)$.
+If this cell is already taken, we start walking to the right, one cell at
+a time\footnote{We wrap back to the beginning of the array when we reach its
+right edge.}, until we find and empty cell and insert the value in it.
+
+\paragraph{History.} Linear probing dates back at least to 1954 where it was
+used in an assembly program written by Samuel, Amdahl and Boehme. It was first
+analyzed in a note published by Knuth \cite{Knuth63} in the case where $h$ is
+totally random ($\H$ is the set of all functions). In this paper, he showed
+that when $m= (1+\eps)n$, then $\E[\text{time per operation}]
+= O\left(\frac{1}{\eps^2}\right)$. There was a breakthrough in a paper by Pagh,
+Pagh and Ruzic \cite{ppr} where it was proved that for any $5$-wise independent
+family, $\E[\text{time per operation}] = O(1)$. Finally Patrascu and Thorup
+\cite{pt} showed that $4$-wise independent families do not guarantee a constant
+running time per operation (that is, they provided an example of a $4$-wise
+independent family for which the expected running time is not constant).
+
+Here, we will prove the following proposition.
+
+\begin{proposition}\label{prop:unfinished}
+    If $m\geq cn$ and $\H$ is $7$-wise independent, then $\E[\text{query time}]
+    = O(1)$.
+\end{proposition}
+
+To prove this proposition, we need to able to compute the expected number of
+cells we have to probe before finding an empty cell. We are going to show
+that this expected number is constant.
+
+\begin{definition}
+    Given an interval $I$ of cells in $A$, we define $L(I)=|\{i: h(i)\in
+    I\}|$\footnote{We allow intervals to wrap around at the end of the table.}.
+\end{definition}
+
+\begin{definition}
+    We say that $I$ is \emph{full} iff $L(I) \geq |I|$.
+\end{definition}
+
+\begin{lemma}
+    If \texttt{query(x)} for some $x$ makes $k$ probes, then there exist at
+    least $k$ full intervals containing $h(x)$.
+\end{lemma}
+
+\begin{proof}
+    Let us define $z_1$ the position of the first empty cell on the left of
+    $h(x)$ and $z_2$ the position of the first empty cell on the right of
+    $h(x)$. It is easy to see that each of the intervals $[z_1, h(x)], [z_1,
+    h(x)+1],\ldots,[z_1, z_2-1]$ are full. There are $z_2-h(x)$ such intervals.
+    But by the assumption of the lemma, $z_2 = h(x)+ k$ which conclues the
+    proof of the lemma.
+\end{proof}
+
+\begin{proof}[Proof of Proposition~\ref{prop:unfinished}]
+By applying the previous lemma:
+\begin{align*}
+    \E[\text{time of \texttt{query(x)}}]
+    &\leq \E[\text{number of full intervals
+        containing $h(x)$}]\\
+        &\leq \sum_{k\geq 1}\sum_{\substack{I, |I|=k\\h(x)\in I}} \Pr(I\text{
+    full}) \leq \sum_{k\geq 1}k \max_{\substack{I, |I|=k\\ h(x)\in I}}\Pr(I\text{ full})
+\end{align*}
+We need to show that the $\max$ in the previous sum is
+$O\left(\frac{1}{k^3}\right)$ so that the sum converges. We assume that $m=2n$
+where $n$ is the number of different keys active.
+\begin{displaymath}
+    \Pr(I\text{ full}) = \Pr(L(I)\geq |I|)
+    \leq\Pr\big(|L(I)-\E L(I)|\geq \E L(I)\big)
+\end{displaymath}
+where the inequality follows from $E[L(I)] = \frac{|I|}{2}$.  Now we would like
+to apply Chernoff, but we don't have independence. Instead we can raise both
+sides of the inequality to some power and apply Markov's inequality. This is
+called the \emph{methods of moments}. We will do this in the next lecture.
+\end{proof}
+
+\bibliographystyle{alpha}
+\begin{thebibliography}{PPR09}
+
+\bibitem[CLRS]{CLRS}
+Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein.
+Introduction to Algorithms, 3$^{\text{rd}}$ edition, MIT Press, 2009.
+
+\bibitem[FKS84]{FKS84}
+Michael L. Fredman, J\'{a}nos Koml\'{o}s, Endre Szemer\'{e}di.
+Storing a Sparse Table with $O(1)$ Worst Case Access Time. 
+{\em J. ACM 31(3)}, pages 538--544, 1984.
+
+\bibitem[Knu63]{Knuth63}
+Don Knuth.
+\newblock Notes On ``Open'' Addressing, 1963.
+
+\bibitem[PPR09]{ppr}
+Anna Pagh, Rasmus Pagh, and Milan Ruzic.
+\newblock Linear probing with constant independence.
+\newblock {\em {SIAM} J. Comput.}, 39(3):1107--1120, 2009.
+
+\bibitem[PT10]{pt}
+Mihai Patrascu and Mikkel Thorup.
+\newblock On the \emph{k}-independence required by linear probing and minwise
+  independence.
+\newblock {\em ICALP}, pages 715--726, 2010.
+
+\end{thebibliography}
+
+\end{document}
