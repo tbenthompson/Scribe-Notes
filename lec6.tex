@@ -161,7 +161,23 @@ The main idea in Fibonacci Heaps is to be lazy. We do not want to do work until 
  
 The problem could now come from decreaseKey, in the case where we repeatedly decrease keys that are leaves of a large tree. A really lazy possible decreaseKey is to decrease $x$'s key, and if $x$ is now smaller than parent, then cut $x$'s tree out and place as a top level tree.The problem with this approach is that we could have a tree of rank $k$, with many decreaseKey on the nodes that are neither the root nor a child of root, which would give us a tree of rank $k$ with $k+ 1$ leaves.
 
-The fix is as follow. If node $p$ loses one child $x$ due to decreaseKey, then no problem. If $p$ loses a second child, we cut $p$ out of its tree and make $p$'s tree a top level tree.
+The fix is as follows. If node $p$ loses one child $x$ due to decreaseKey, then no problem. If $p$ loses a second child, we cut $p$ out of its tree and make $p$'s tree a top level tree. With this fix in hand, it is possible to prove Lemma~\ref{lem:fib} below.
+
+\begin{definition}
+We define the {\em Fibonacci numbers} $\{F_k\}_{i=0}^\infty$ via the recurrence
+$$
+F_k =
+\begin{cases}
+0,\ \text{ if } k=0\\
+1,\ \text{ if } k = 1\\
+F_{k-1} + F_{k-2},\ \text{otherwise}
+\end{cases}
+$$
+\end{definition}
+
+\begin{lemma}\label{lem:fib}
+A tree in a Fibonacci heap with rank $k$ has at least $F_{k+2}$ nodes.
+\end{lemma}
 
 \subsection{Amortized Analysis}
 We claim that  $t_{insertion}, t_{decreaseKey} = O(1)$ and that $t_{decreaseMin} = O(\lg n)$.
@@ -180,7 +196,7 @@ $\Phi(state) = \mbox{\# trees} + 2 (\mbox{\# marked items}) = T(H) + 2 M(H)$
 
 \item Insertion. actual cost + $\Delta \Phi$ = O(1) + 1 = O(1)
 
-\item deleteMin. $T + \Delta T(H) + 2\Delta M(H) \leq T + t- T + 0 = O(t) = O(\lg n)$
+\item deleteMin. $T + \Delta T(H) + 2\Delta M(H) \leq T + t- T + 0 = O(t)$ where $t$ is the number of trees left after consolidation, and $T$ is before consolidation. That is, we keep merging trees of equal rank until for each rank $k$, at most one tree of rank $k$ exists in our data structure. Now note that a rank $k$ tree has at least $F_{k+2} \ge \sqrt{2}^k$ nodes. Therefore the largest rank of any tree in our data structure can be at most $\log_{\sqrt{2}} n$ (since there are only $n$ nodes in the entire forest), implying $t \le (\log_{\sqrt{2}} n) + 1 = O(\log n)$.
 
 \item decreaseKey. We have two cases.
 \begin{itemize} 
