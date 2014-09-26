@@ -166,12 +166,12 @@ We propose an alternative proof which does not rely on the Chernoff bound.
     \begin{align*}
     \Pr(\exists\text{ overloaded machine})
     &\leq n \Pr(\text{machine 1 is overloaded})\\
-    &=\Pr(\exists \text{ $k$ items mapping to machine 1})\\
-    &\leq \sum_{\substack{T\subseteq[u]\\|T|=k}} \Pr (\text{items in $T$ all
+    &=n\Pr(\exists \text{ $k$ items mapping to machine 1})\\
+    &\leq n\sum_{\substack{T\subseteq[u]\\|T|=k}} \Pr (\text{items in $T$ all
     map to 1})\\
-    &\leq\sum_{\substack{T\subseteq[u]\\|T|=k}} \frac{1}{n^k}
-    = \frac{\binom{n}{k}}{n^k}\leq \frac{1}{k!}
-    \leq\left(\frac{1}{(k/2)}\right)^{k/2}
+    &\leq n\sum_{\substack{T\subseteq[u]\\|T|=k}} \frac{1}{n^k}
+    = n\frac{\binom{n}{k}}{n^k}\leq n\frac{1}{k!}
+    \leq n\left(\frac{e}{k}\right)^{k}
 \end{align*}
 and we conclude as in the previous proof.
 \end{proof}
