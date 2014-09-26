@@ -422,22 +422,25 @@ We obtained desired bound on the difference of potential in single zig-zig step.
 As noted before stating the main lemma, by setting a constant weight function $w \equiv 1$, we get a $\Oh(\log n)$ upper bound on amortized complexity of single operation --- thus splay trees are, in average, at least as good as balanced BSTs. We will see how to set a weight function to prove a slightly weaker version of static optimality. The argument below is due to a LiveJournal post of David Eppstein, whose goal was to present static optimality of splay trees in a way that avoids mention of Shannon entropy as was done in the original paper \cite{DBLP:journals/jacm/SleatorT85}.
 
 Consider a tree $T$, and let $l_i$ be the level on which element $i$ is in tree $T$, and let $m_i$ to be the number of times that $i$ were accessed in the access sequence under consideration.
-Note that cost of processing this sequence with a tree $T$ is $\Oh(m + \sum_{i=1}^n m_i l_i)$. We will prove that for splay trees this cost is at most $\Oh(m + n^2 \log n + \sum_{i=1}^n m_i l_i)$.
-
-Indeed, by the definition: 
+Note that cost of processing this sequence with a tree $T$ is $\Oh(m + \sum_{i=1}^n m_i l_i)$. We will prove that for splay trees this cost is at most $\Oh(m + n^2 \log n + \sum_{i=1}^n m_i l_i)$. Lets take the weight function $w(i) = 3^{-l_i}$. Note that with non integral weights potential function might take negative values --- this is not a problem, we still have the important property:
 \begin{equation*}
-\mathrm{amortiezed\_time} = \mathrm{actual\_time} + \Delta\Phi
+\mathrm{amortized\_time} = \mathrm{actual\_time} + \Delta\Phi
 \end{equation*}
 hence
 \begin{equation*}
 \mathrm{actual\_time} = \mathrm{amortized\_time} - \Delta\Phi
 \end{equation*}
 
-It is easy to see, that $\Phi$ takes values in the interval $[0, c n^2 \log n]$ --- indeed: $w(i) \leq 3^n$, so  $s(x) \leq n 3^n$, than $r(x) = \Oh(n \log n)$, and $\sum_x r(x) = \Oh(n^2 \log n)$. Thus $- \Delta\Phi = \Oh(n^2 \log n)$.
+First note that sum of all weights of a tree is at most constant:
+\begin{equation*}
+	W = \sum_{i} w_i = \sum_{l} \frac{1}{3^l} (\# \text{nodes at height }l) \leq \sum_l \left( \frac{2}{3} \right)^l \leq C
+\end{equation*}
 
-We need to prove that amortized time is at most $\Oh(m + \sum_{i=1}^n m^i l_i)$. This is indeed true --- first, note that $W = \sum_{l} \frac{1}{3^l} (\# \text{nodes at height l}) \leq \sum_{l} \left(\frac{2}{3}\right)^l = \Oh(1)$. Moreover $s(i) \geq w(i) = \frac{1}{3^{l_i}}$. Now by the main lemma, amortized cost of a single operation is at most $\Oh(1 + \log(\frac{w}{s(i)})) = \Oh(1 + \log(3^{l_i})) = \Oh(l_i)$, and amortized cost of a whole sequence is indeed $\sum_{i=1}^n l_i m_i$.
+We observe that $\Phi$ takes values in the interval $[-c n^2, C' n]$ --- indeed: $w(i) \geq 3^{-n}$, so  $s(x) \geq 3^{-n}$, then $r(x) \geq -c n$, and $\sum_x r(x) \geq -c n^2$. On the other hand sum of all weights is at most constant, so $s(x) \leq C$, and $r(x) \leq C'$ --- sum of all $r(x)$ is at most $C' n$.  Now, as $\Phi$ takes values in an interval of length $\Oh(n^2)$, we conclude that $- \Delta\Phi = \Oh(n^2)$.
+
+We need to prove that amortized time is at most $\Oh(m + \sum_{i=1}^n m^i l_i)$. By the main lemma, amortized cost of a single operation is at most $\Oh(1 + \log(\frac{W}{s(i)}))$, and as $W$ is constant, and $s(i) \geq 3^{-l_i}$ this cost is upper bounded by $\Oh(1 + \log(3^{l_i})) = \Oh(l_i)$, and amortized cost of a whole sequence is indeed $\sum_{i=1}^n l_i m_i$.
 \qed
 
-\bibliography{lec7}{}
+\bibliography{lecture-7}{}
 \bibliographystyle{plain}
 \end{document}
