@@ -1,0 +1,338 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{comment}
+\usepackage{filecontents}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf #2 } \hfill #3 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #1  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #4 \hfill #5} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[5]{\handout{Lecture #1}{#2}{#3}{#4}{Scribe: #5}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\let\mark\relax
+\DeclareMathOperator{\mark}{MARK}
+\DeclareMathOperator{\opt}{OPT}
+\def\polylog{\operatorname{polylog}}
+
+\begin{document}
+
+\lecture{9 --- September 30, 2014}{Advanced Algorithm}{Fall 2014}{Prof.\ Jelani Nelson}{Yi-Hsiu Chen}
+
+\section{Overview}
+In the last lecture, we started discussing online algorithms.
+In this lecture, we will continue on this topic by proving the marking algorithm is a $2H_k$-competitive algorithm \cite{fiat1991competitive}.
+Then we will introduce a generic framework -- the online primal/dual method of \cite{buchbinder2005online} -- and show how the $2$-competitive algorithm for the ski rental problem can be understood under this framework.
+
+\begin{comment}
+- $2H_k$-competitives for paging algorithm ("marking")
+- online primeal / dual (built around linear programming (LP))
+  -  ski rental - you can beat ratial two if introcducing randomness (e/e-1)
+  -  online set cover, pick a set to cover for an coming element
+
+%by Fiat et al Journal algorithm 91'
+\end{comment}
+
+\section{Marking Algorithm}
+
+\subsection{Algorithm}
+Let's recall the marking algorithm. It's an implementation of 1-bit LRU from last lecture, where we evict a uniformly random page. Namely
+\begin{enumerate}
+  \item Initially, all pages are unmarked.
+  \item When bringing page $p$ into cache, evict a page chosen uniformly at random from the set of unmarked pages (if all pages are marked, then first unmark all pages).
+  \item Mark the requested page.
+\end{enumerate}
+
+\subsection{Analysis}
+Denote the marking algorithm as $\mark$ and the optimal one as $\opt$.
+Our goal is to show that the marking algorithm is a $2H_k$-competitive algorithm. Namely, for a request sequence $s$
+\[\E[cost_{\mark}(s)] \leq 2H_k \cdot cost_{\opt}(s) \mbox{ where } H_k = \sum_{i = 1}^k \frac{1}{i} = \ln k + O(1)\]
+We will divide the request sequence into phases. A new phase starts when all pages are unmarked. Let's define the following terms:
+\begin{itemize}
+\item A page $p$ is \textbf{clean} if it wasn't requested in the last phase and not yet requested in this phase.
+\item A page $p$ is \textbf{stale} if it was requested in the last phase but not yet in this phase.
+\end{itemize}
+
+We also define the variables
+\begin{itemize}
+\item $L_i$: Number of clean pages requested in phase $i$.
+\item $S_i$: Number of stale pages requested in phase $i$.
+\item $D_i$: Number of pages in $\opt$'s cache at the beginning of phase i which aren't in $\mark$'s cache.
+\item $D'_i$: Number of pages in $\opt$'s cache at the end of phase i which aren't in $\mark$'s cache (note $D'_i = D_{i+1}$).
+\end{itemize}
+
+Then we will prove the $2H_k$-competitive by showing in phase $i$,
+\begin{enumerate}
+\item The cost of $\opt$ is at least $\frac{1}{2}L_i + \frac{1}{2}(D_i' - D_i)$ 
+\item The expected cost of $\mark$ is no more than $H_kL_i$
+\end{enumerate}
+Once we proved those, we can conclude that
+\[cost_{\opt} = \sum_i \frac{1}{2}L_i + \frac{1}{2}(D_i' - D_i) \geq \sum_i \frac{1}{2}L_i
+\geq \frac{1}{2H_k} \sum_i H_kL_i \geq \frac{1}{2H_k} cost_{\mark}\]
+
+\begin{proof}[proof of 1.]
+For the $L_i$ clean pages, $\mark$ has none of them, so $\opt$ can have at most $D_i$ at the beginning.
+Thus the cost is not less than $L_i-D_i$.
+On the other hand, there are $D_i'$ pages in $\mark$ but not in $\opt$ at the end of phase, which means there are at least $D_i'$ evictions.
+In sum up, the cost of $\opt$ in phase $i$ is $\geq \max(L_i-D_i, D_i')\geq \frac{1}{2}(L_i-D_i+D_i')$.
+\end{proof}
+
+\begin{proof}[proof of 2.]
+Only clean or stale requests can cause eviction for $\mark$.
+Each of the $L_i$ clean requests causes an eviction.
+Let's consider a stale request. Suppose we are currently serving a stale request, and we have already had $s$ stale requests and $c$ clean requests prior to it in the current phase. At the moment, the cache consists of $c$ clean, and $s$ pages from the last phase that were stale-requested this phase. Thus of the $k-s$ pages left of the last phase, a random set of $c$ were evicted this phase by the $c$ clean requests. Therefore the expected cost of the stale request is
+\[\Pr[\mbox{this pages has been evict}] = \frac{c}{k-s} \leq \frac{L_i}{k-s}\]
+Then the total expected cost during phase $i$ of serving stale requests is
+\[\E[cost_{\mark}\mbox{ in phase } i] \leq L_i\cdot\sum_{s = 0}^{k-L_i-1}\frac{1}{k-s} = L_i\sum_{j = L_i+1}^k\frac{1}{j} = L_i(H_k-H_{L_i}) \leq L_i(H_k-1)\]
+Note $H_{L_i} \ge 1$ since $L_i \ge 1$ (there is at least one clean request per phase, namely the first request that starts the phase).
+
+Then adding the $L_i$ clean requests, we find that the total expected cost is $L_iH_k$.
+\end{proof}
+
+\subsection{Lower Bound}
+\begin{theorem}
+Any randomized algorithm has competitive ratio $\Omega(\lg k)$.
+\end{theorem}
+\begin{proof}
+Let the number of pages in universe be $n = k+1$.
+Consider a uniformly random request sequence.
+Then for every request, the probability of page fault for an algorithm is $\frac{1}{k+1}$.
+So on a length $m$ sequence, the algorithm expects to fault $m/(k+1)$ times. In fact for $m$ sufficiently large, it will fault $\Omega(m/(k+1))$ times with high probability on a random sequence of length $m$.
+
+On the other hand, $\opt$ gets to see the entire random sequence from the beginning. When $\opt$ must evict a page it will evict the page $p$ that appears farthest in the future. Thus before that, it will see all other pages before seeing $p$ again. Therefore by a coupon collector argument, the expected number of steps to see all pages is $k\ln k$ (in fact it is $\Theta(k\ln k)$ with high probability).
+
+In summary, on $2/3$rds of the random sequences our algorithm makes $\Omega(m/k)$ page faults. Meanwhile on $2/3$rds of random sequences, $\opt$ makes at most $O(m/(k\lg k))$ page faults. Therefore by a union bound there exists a sequence in the intersection, for which our competitive ratio is $\Omega(\lg k)$.
+\end{proof}
+
+In fact it is possible to prove an $H_k$ lower bound for the competitive ratio (see \cite{fiat1991competitive}). Thus the marking algorithm is suboptimal by a factor of $2$. Later McGeoch et.\ al developed the ``partitioning algorithm'' \cite{mcgeoch1991strongly} which is $H_k$-competitive. After that, a simpler algorithm with simpler analysis achieving $H_K$ competitive ratio was proposed in \cite{achlioptas2000competitive}.
+
+\subsection{Generalization}
+If we compare with the optimal algorithm with different size of caches, it's called \textbf{resource augmentation}.
+Suppose $\opt$ has cache of size $h$, but you have cache $k$.
+Young \cite{young1991line} showed that you can get $2\ln(k/(k-h+1))$-competitive and less than $\ln(k/(k-h+1))$ is impossible. It seems that it is an open problem to close this factor-$2$ gap in the resource augmentation case.
+
+The more general version is $k$-server problem.
+Your algorithm controls $k$ servers, which lie in a metric space $X$.
+The request sequence is a series of points in $X$.
+For a request point $p$, you must move a server to lie on $p$ and the cost is the distance.
+A $2k-1$ competitive deterministic algorithm is known \cite{koutsoupias1995k} and the lower bound for any deterministic algorithm is $k$-competitiveness.
+It's still open whether there is an randomized algorithm with competitive ratio $\polylog(k)$ (the conjecture is that $O(\lg k)$ is achievable).
+A recent result by Bansel et al. achieves the ratio $O((\log)^2(\lg n)^3)\log\log n)$ \cite{bansal2011polylogarithmic}.
+
+Another way to generalize the paging problem is weighted paging: the costs of bringing different pages into cache are different. This makes sense when some pages are more expensive to fetch than others (e.g.\ some pages are in local memory, whereas others might live in the cache of another core that you then have to bus over). Bansal, Buchbinder, and Naor gave an online algorithm achieving competitive ratio $O(\lg k)$ for this problem \cite{BansalBN12}.
+
+\section{Online Primal / Dual Framework}
+The Primal / Dual is a powerful technique in algorithm design.
+Buchbinder and Naor extended this technique to developing online algorithms with good competitive ratios \cite{buchbinder2005online} (see also the book \cite{BuchbinderN09}). In this section, we will revisit and define some terminology in linear programming, then apply the online primal / dual framework to the ski rental problem.
+
+\subsection{Linear Programming Recap}
+\paragraph{Linear Programming (LP)} In linear programming, we want to find vector $x$ to minimize $c^Tx$ and subject to $Ax\geq b$ as well as $x\geq 0$. Here $c,b,x$ are vectors and $A$ is a matrix. Inequalities are coordinate-wise.
+\paragraph{Covering} We say an LP as above is a {\em covering LP} if all entries of $A, b$ and $c$ are $\geq 0$.
+\paragraph{Duality}
+Notice that as long as $y\ge 0$, for a feasible solution $x$ we have $y^T Ax \ge y^T b$. Then if $y^T A \le c^T$, this implies that $y^T b$ is a lower bound on the optimal solution of our LP.
+
+We could imagine choosing $y$ to get the best lower bound possible. This gives the {\em dual} linear program (as opposed to the original {\em primal} one). This dual program is to maximize $b^T y$ subject to $A^T y \le c$ and $y\ge 0$.
+
+\paragraph{Packing} The above formulation of the dual linear program is called a {\em packing LP} if all entries of $A, b, c$ are $\geq 0$.
+
+Notice that by construction, we have the following ``weak duality'' theorem.
+
+\begin{theorem}[Weak duality theorem]
+If $\opt_P$ is the minimum value possible in primal LP $(c^Tx)$ and
+   $\opt_D$ is the maximum value possible in dual LP $(b^Ty)$, then
+\[\opt_P \geq \opt_D\]
+\end{theorem}
+
+In fact the following strong duality theorem also holds, but we will neither prove it nor use it today.
+
+\begin{theorem}[Strong duality theorem]
+If either primal or dual LP has a finite optimal solution, then
+\[\opt_P = \opt_D\]
+\end{theorem}
+
+Now, we will look at the primal/dual framework of \cite{buchbinder2005online} for developing online algorithms for solving covering LPs. The model is that we know the objective function, but we only see constraints one at a time. Initially $x = 0$, and as we see a new constraint we are allowed to increase some subset of the $x_i$ to satisfy the new constraint. Then, at the end of seeing all constraints, we want to be competitive with the optimal solution in hindsight. Note that the entries of $x$ must be monotonically non-decreasing over time in this model.
+
+\subsection{Ski Rental Problem}
+Suppose renting costs 1 dollar while buying cost $B$ dollars.
+Let $x\in\{0, 1\}$ indicate whether we buy and $z_i\in\{0, 1\}$ indicate whether we rent on the $i$-th day.
+
+Translating the problem into an LP, we are trying to minimize $Bx + \sum_{i = 1}^kz_i$ subject to
+$\forall i\in[k],\; x + z_i \geq 1$ and $x \geq 0, z\geq 0$.
+
+While we are considering the online problem, we will see rows of $A$ online and have to satisfy constraints online.
+Our variables throughout the request sequence start from 0 and are monotonically non-decreasing.
+
+Dual: maximize $\sum_{i = 1}^k y_i$ subject to $\sum_{i = 1}^k y_i \leq B$ and $0\le y\le 1$ (here on the right hand side we mean the all $1$'s vector).
+
+\begin{lemma}[approximate complementary slackness]
+Let $x$ (resp.\ $y$) be solutions to the primal (resp.\ dual) LP.
+Suppose there exist $\alpha, \beta > 0$ such that
+\[\begin{cases}
+\forall i, \mbox{ if } x_i > 0, \mbox{ then } c_i/\alpha \leq (A^T)_i \cdot y \leq c_i\\
+\forall i, \mbox{ if } y_i > 0, \mbox{ then } b_i \leq A_i \cdot x \leq \beta b_i
+\end{cases}\]
+where $A_i$ is the $i$th row of $A$. Then
+\[c^Tx \leq \alpha\beta \cdot b^T y\]
+\end{lemma}
+The lemma is useful because
+\[b^Ty \leq \opt_D \leq \opt_P \leq c^Tx \leq \alpha\beta b^Ty\]
+Therefore $c^T x \le \alpha\beta\opt_P$. In other words, finding feasible solutions $x,y$ to the primal and dual that satisfy good approximate complementary slackness conditions implies that $x$ is a nearly optimal solution.
+
+Having the approximate complementary slackness, here we state the primal-dual 2-competitive algorithm for ski rental:
+
+\paragraph{Algorithm}
+When constraint $x+z_i \geq 1$ arrives, do nothing if already satisfied.
+Otherwise, increase $y_i$ until some dual constraint becomes tight. Then set the primal variable corresponding to that dual variable to $1$.
+
+More precisely:
+If $\sum_i y_i \leq B$ becomes tight, then set $x = 1$.
+If $y_i \leq 1$ becomes tight, then set $z_i$ to 1.
+At the end, we have pair of feasible solutions for the primal and dual, and it is not hard to check that they satisfy approximate complementary slackness with $\alpha=1, \beta = 2$. Therefore this algorithm is $2$-competitive.
+
+In fact if one closely examines the decisions that this algorithm makes, it is exactly the $2$-competitive algorithm from last lecture!
+
+\begin{filecontents}{shortbib.bib}
+
+@article{mcgeoch1991strongly,
+  title={A strongly competitive randomized paging algorithm},
+  author={McGeoch, Lyle A and Sleator, Daniel D},
+  journal={Algorithmica},
+  volume={6},
+  number={1-6},
+  pages={816--825},
+  year={1991},
+  publisher={Springer}
+}
+
+@article{BansalBN12,
+  author    = {Nikhil Bansal and
+               Niv Buchbinder and
+               Joseph Naor},
+  title     = {A Primal-Dual Randomized Algorithm for Weighted Paging},
+  journal   = {J. {ACM}},
+  year      = {2012},
+  volume    = {59},
+  number    = {4},
+  pages     = {19},
+}
+
+@article{achlioptas2000competitive,
+  title={Competitive analysis of randomized paging algorithms},
+  author={Achlioptas, Dimitris and Chrobak, Marek and Noga, John},
+  journal={Theoretical Computer Science},
+  volume={234},
+  number={1},
+  pages={203--218},
+  year={2000},
+  publisher={Elsevier}
+}
+
+@article{BuchbinderN09,
+  author    = {Niv Buchbinder and
+               Joseph Naor},
+  title     = {The Design of Competitive Online Algorithms via a Primal-Dual Approach},
+  journal   = {Foundations and Trends in Theoretical Computer Science},
+  year      = {2009},
+  volume    = {3},
+  number    = {2-3},
+  pages     = {93--263},
+}
+
+@article{fiat1991competitive,
+  title={Competitive paging algorithms},
+  author={Fiat, Amos and Karp, Richard M and Luby, Michael and McGeoch, Lyle A and Sleator, Daniel D and Young, Neal E},
+  journal={Journal of Algorithms},
+  volume={12},
+  number={4},
+  pages={685--699},
+  year={1991},
+  publisher={Elsevier}
+}
+
+@inproceedings{young1991line,
+  title={On-Line Caching as Cache Size Varies.},
+  author={Young, Neal E},
+  booktitle={SODA},
+  volume={91},
+  pages={241--250},
+  year={1991}
+}
+
+@article{koutsoupias1995k,
+  title={On the k-server conjecture},
+  author={Koutsoupias, Elias and Papadimitriou, Christos H},
+  journal={Journal of the ACM (JACM)},
+  volume={42},
+  number={5},
+  pages={971--983},
+  year={1995},
+  publisher={ACM}
+}
+
+@inproceedings{bansal2011polylogarithmic,
+  author    = {Nikhil Bansal and
+               Niv Buchbinder and
+               Aleksander Madry and
+               Joseph Naor},
+  title     = {A Polylogarithmic-Competitive Algorithm for the k-Server Problem},
+  booktitle = {Proceedings of the 52nd Annual Symposium on Foundations of Computer Science (FOCS)},
+  year      = {2011},
+  pages     = {267--276},
+}
+
+@incollection{buchbinder2005online,
+  title={Online primal-dual algorithms for covering and packing problems},
+  author={Buchbinder, Niv and Naor, Joseph},
+  booktitle={ESA},
+  pages={689--701},
+  year={2005},
+  publisher={Springer}
+}
+
+\end{filecontents}
+\bibliographystyle{alpha}
+\bibliography{shortbib}
+
+\end{document}
