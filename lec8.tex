@@ -1,0 +1,236 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{8 --- Sept 25, 2014}{Fall 2014}{Prof.\ Jelani Nelson}{Jean Pouget-Abadie}
+
+\section{Online Algorithms - Overview}
+
+In this lecture, we are going to cover `Online algorithms' which study decision-making in the face of uncertainty. We suppose there is some cost to be paid for making a decision. At the end of a sequence of requests, we want to make sure we didn't spend much more than the least we could've spent in hindsight.
+
+\begin{definition}
+Let OPT be the algorithm that makes the best sequence of decisions one could make if we knew the series of requests in advance. Denote by $\sigma (\sigma_1, \sigma_2, \dots, \sigma_n) $ a series of requests. An decision-making algorithm A is {\bf r-competitive} if $$\forall \sigma, \text{cost}_A(\sigma) \leq r \cdot \text{cost}_{OPT} (\sigma) + O(1)$$
+\end{definition}
+
+\section{Examples}
+
+\subsection{Ski rental}
+
+Suppose you are going on a ski trip with friends. Each day, your friends will either decide to stay and ski on more day or decide to leave, such that you do not know ahead of time how long you will keep on skiing. The ski shop gives you two options: you can either rent skis for 1\$/day, or you can buy skis for B\$ after which you do not need to rent skis anymore.
+
+The OPT algorithm is omniscient and knows exactly how long days $N$ you will ski. If $N > B$, the OPT algorithm decides to buy skis, and rent skis every day otherwise. Without knowing $N$ ahead of time, one algorithm is to rent skis for $B$ days, then buy skis on the $B+1^{st}$ day. We show that this algorithm $A$ is 2-competitive.
+
+\begin{enumerate}
+\item If $N \leq B$, then $\text{cost}_{OPT} = N$ and $\text{cost}_A = N$.
+\item $If N > B$, then $\text{cost}_{OPT} = B$ and $\text{cost}_A = 2B$
+\end{enumerate} 
+
+\subsection{Free pizza}
+
+Suppose you are in the center of a very long hallway, with $\frac{n}{2}$ evenly-spaced rooms on either side. You heard from you friend that one of the rooms in the hallway has free pizza. However, your phone has run out of battery and you must peek into the rooms to find the free pizza. Also assume that walking past a room is enough to decide whether there is free pizza inside, such that you pay exactly the number of rooms you walk past.
+
+Index rooms from $-\frac{n}{2}$ to $\frac{n}{2}$ from left to right, placing yourself at $0$ and suppose the room with the free pizza is at $P$. The OPT algorithm knows exactly where the pizza is and walks past $|t|$ rooms. Algorithm A consist of visiting 1 room on your right, then doubling back and visiting all the rooms until you reach room number $-2$, doubling back again to visit room number $4$ such that you zigzag from left to right, doubling back at $1, -2, 4, -8, 16 \dots$. We claim that algorithm A is 9-competitive.
+
+Each time you visit a room, you pay the price to reach that room (equal to the room number) and the price to double-back and reach zero, such that in the worse case, you pay $$S := (1+1) + (2+2)+(4+4) \dots (2^m + 2^m) + t$$
+Notice that $2^m \leq 2t$ since in the worse case, you double-back at $\pm 2^m$ before going to $t=\pm 2^{m+1}$. Therefore $S \leq t + 2(1 + 2 + 4 + \dots 2t) \leq t + 2(4t) = 9 \times \text{cost}_{OPT}$.
+
+\section{List Update}
+
+We are going to study two mechanisms taken from Sleator and Tarjan's paper \cite{SJ85}: List Update and Paging. The latter is covered in the next section.
+
+Suppose we can hold up to $n$ items in a linked list, which supports the following operations :
+
+\begin{enumerate}
+\item {\bf access(x)} : Pointer starts at beginning of linked list and goes to item x.
+\item {\bf insert(x)} : Puts item x at the end of the list
+\item {\bf delete(x)} : Deletes node x from the list
+\end{enumerate}
+
+After accessing an item, you are allowed to move it to any position that is closer to the front of the list at no cost. We further suppose that accessing item $i$ costs us $i$. Sleator and Tarjan discuss several heuristics in \cite{SJ85}:
+\begin{enumerate}
+\item {\bf Move-to-Front (MF)}: always move the accessed item to the front of the list
+\item {\bf Transpose}: transpose accessed item with the item immediately before it in the list
+\item {\bf Frequency count}: keep items in sorted order of frequence of accesses (most to least frequent).
+\end{enumerate}
+Bentley, McGeoch prove in \cite{BM85} the following theorem,
+
+\begin{theorem}
+Let s be a sequence of access requests. If no insertions are allowed and items are initially sorted by time of first access, then
+$$\forall s, \text{cost}_{MF}(s) \leq 2 \text{cost}_{FC}(s)$$
+\end{theorem}
+
+We can think of this result as a static-optimality property for the Move-to-Front heuristic. Sleator and Tarjan \cite{SJ85} prove in the same year the two following results:
+
+\begin{theorem}
+Move-to-Front is dynamically optimal: its competitive ratio is $O(1)$
+\end{theorem}
+
+\begin{theorem}
+Let A be any algorithm and we assume that at the beginning of access sequence s, A and MF have all items in the same order, then $$\forall s \text{ s.t. } |s| = m \text{, cost}_{MF}(s) \leq  2 \text{cost}_A(s) + X_{A}(s) - F_{A}(s) -m$$ where $X_A$ denotes the paid exchanges and $F_A$ denotes the free exchanges.
+\end{theorem}
+
+\begin{proof}
+Let $\Phi$ be the number of inversions in MF's list using the ordering specified by A's list. For example, if an item i comes before j in MF's list but after J in A's list, then we count one inversion. By definition of the optimal cost and the chosen potential function $\Phi$, we only need to bound the amortized cost.
+
+\begin{align}
+\text{Total cost} &= \text{Amortized cost} + \Phi_{init} - \Phi_{final} \nonumber
+&\leq \text{Amortized cost} + \Phi_{init} \text{ (with }\Phi_{init} =0) \nonumber
+\end{align}
+By definition of the amortized cost, `Amortized cost' $= $`Actual Cost'  $+ \Delta \Phi$
+Suppose queried item x is the $i^{th}$ item for A and the $k^{th}$ item for MF. Then we have `Actual Cost' $= k $. What of $\Delta \Phi$? Suppose there are t items before x in MF's list that are after x in A's list. Accessing x and moving it to the front undoes $t$ inversions and creates $k - t -1$ new inversions:
+$$\Delta \Phi = k - t - 1 - t = k - 2t - 1$$
+Notice that there are at most $i -1$ items before x in A's list but at least $k - t -1$ items, therefore $k -t \leq i$. It follows that $$\text{Amortized cost} = k + (k - 2t - 1) =2 (k - t) -1 \leq 2 i -1$$ which concludes our proof. The analysis of insertion is similar. For deletion we create no new inversions and thus have amortized cost $k-t \le i$.
+
+Free exchanges by $A$ have amortized cost $-1$, giving the additive $-F_A(s)$ term. Paid exchanges by $A$ have amortized cost at most $1$, giving the additive $X_A(s)$ term.
+\end{proof}
+
+\section{Paging}
+
+What if accessing the $i^{th}$ item in the list costs $f(i)$ and not just i? In the paging model, we suppose that we have $K$ lines of cache, which cost nothing to access, and $n$ items split between RAM and cache. Fetching an item from RAM costs 1. If a queried item is not in cache, we must choose to place it in the cache (and therefore evict an item from the cache). In this setup, $f(i) = 0$ if $i \leq K$ and 1 otherwise. 
+
+There are several replacement policy heuristics:
+
+\begin{itemize}
+\item {\bf Least Recently Used (LRU)} : Evict the least recently used item from the cache (equivalent to Move-to-Front)
+\item {\bf Least Frequently Used (LFU)} : Remove the least frequently used item from cache.
+\item {\bf First in First out (FIFO)} : remove the most recently queried item from cache
+\end{itemize}
+
+Belady shows in \cite{BE66} that the optimal (omniscient) algorithm is the one selecting the farthest queried item in the future. The followin theorem is due to Sleator and Tarjan \cite{SJ85}:
+
+\begin{theorem}
+\label{th:lrufifo}
+LRU and FIFO are both K-competitive. Furthermore, no online algorithm can have a competitive ratio $< K$
+\end{theorem}
+
+\begin{proof}
+We prove the second claim. Assume the total number of pages is $K+1$. If we always query the item that A just evicted, A will fault everytime. However, OPT will evict the furthest item in the future and faults only at most every K queries.
+\end{proof}
+
+We now describe another class of heuristics : {\bf 1-bit LRU}. Initially, all pages are unmarked. When an access comes in, if we must evict an item from cache, we evict an unmarked item (randomly or according to a certain procedure). Every time an item is accessed, we mark it. If all pages are marked, then once we need to evict, we clear all marked bits.
+\begin{theorem}
+\label{th:1bitlru}
+1-bit LRU is K-competitive
+\end{theorem}
+
+\begin{proof}
+Notice that since LRU is a special case of 1-bit LRU, we have: 1-bit LRU is K-competitive implies that LRU is K competitive. As such, by proving Theorem~\ref{th:1bitlru} we prove the second claim of Theorem~\ref{th:lrufifo}. Break the sequence into phases which are seperated by the `clear all marked bits' operation. Within a phase, 1-bit LRU has at most K faults. OPT has at least 1 fault.
+\end{proof}
+
+\section{Circumventing Theorem~\ref{th:lrufifo}}
+
+There are several methods for circumventing the lower bound on the competitivity ratio indicated by Theorem~\ref{th:lrufifo}:
+
+\subsection{Resource Augmentation}
+
+If we allow ourselves to have K slots in cache but only give $K' < K$ slots to the OPT algorithm, then Sleator and Tarjan show in \cite{SJ85} that LRU and FIFO are $\frac{K}{K - K' +1}$--competitive.
+
+\subsection{Randomization}
+Suppose that the cache replacement policy can make random decisions. We can distinguish three types of adversaries:
+
+\begin{enumerate}
+\item Omniscient: knows all random coins flipped, in past and future
+\item Adaptative: takes into account past random coins flipped, but doesn't know future randomness.
+\item Oblivious: chooses access sequence $s$ at the beginning, before any coins are flipped.
+\end{enumerate} 
+
+Let us define a $r-competitive$ randomized algorithm.
+
+\begin{definition}
+Let s be a sequence of access queries. A {\bf randomized} algorithm A is {\bf r-competitive} if $$\forall s, \mathbb{E}(\text{cost}_A(s)) \leq r \text{cost}_{OPT}(s) + O(1)$$
+\end{definition}
+
+The following theorem is due to Fiat, Karp, Luby, McGeoch, Sleator, and Young \cite{FKLMSY91}:
+
+\begin{theorem}
+There is a randomized algorithm with a competitive ratio of $H_K := \sum_{j=1}^K \frac{1}{j} = \ln(K) + O(1)$. Furthermore, any randomized algorithm has a competitive ratio $\Omega(\log k)$
+\end{theorem}
+
+Consider the following {\bf Marking} algorithm The marking algorithm is a special case of 1-bit LRU, where the evicted unmarked page is chosen uniformly at random.
+
+\begin{theorem}
+The marking algorithm is $2 H_k$-competitive, where $H_k$ is defined as above.
+\end{theorem}
+
+\begin{proof}
+We break the access sequences into phases. We will call a page {\bf clean}, if it was not accessed in the last phase and not yet accessed in this phase. We call a page {\bf stale} if it was accessed in the last phase but not yet in this phase. We will show (next time) that there are L clean accessed in a phase. In this case, OPT pays at least $\frac{k}{2}$ and $M$ pays at most $2 L H_K$ in expectation.
+\end{proof}
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{SJ85}
+Daniel~Dominic~Sleator, Robert~Endre~Tarjan.
+\newblock Amortized Efficiency of List Update and Paging Rules.
+\newblock {\em Communications of the ACM}, 28(2):202--208, 1985.
+
+\bibitem{BM85}
+Jon~Bentley, Catherine~McGeoch.
+\newblock Amortized Analyses of Self-Organizing Sequential Search Heuristics
+\newblock {\em Commun. ACM}, 28(4):404--411, 1985.
+
+\bibitem{BE66}
+L\'{a}szl\'{o}~B\'{e}l\'{a}dy.
+\newblock A Study of Replacement Algorithms for Virtual-Storage Computer
+\newblock {\em IBM Systems Journal}, 5(2):78--101, 1966.
+
+\bibitem{FKLMSY91}
+Amos~Fiat, Richard~Karp, Michael~Luby, Lyle~McGeoch, Daniel~Sleator, Neal~Young.
+\newblock Competitive Paging Algorithms
+\newblock {\em J. Algorithms} 12(4):685--699, 1991.
+
+\end{thebibliography}
+
+\end{document}
