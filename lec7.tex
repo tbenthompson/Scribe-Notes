@@ -74,7 +74,7 @@ Our data structure will support following operations:
 	\item {\bf \underline{Delete}$(k)$} --- deletes from data structure value associated with key $k$
 \end{itemize}
 
-Those are exactly operations that are defining {\it dictionary problem} in data structures --- one which is traditionally approached by hash tables. Here we insist that the data structure we provide is comparison based (the only operation available on keys, apart from copying and storing them, is comparison). Moreover, the data structure we provide, will actually fit in much more strict model: namely BST model. Such data structures usually can be {\it enriched} to support more complex operations such as various forms of range queries and range updates, or predecessor problem. 
+Those are exactly operations that are defining {\it dictionary problem} in data structures --- one which is traditionally approached by hash tables. Here we insist that the data structure we provide is comparison based (the only operation available on keys, apart from copying and storing them, is comparison). Moreover, the data structure we provide, will actually fit in much more strict model: namely BST model. Such data structures usually can be {\it enriched} to support more complex operations such as various forms of range queries and range updates, or predecessor problem.
 \subsection{BST model}
 At the beginning of each operation our program is allowed to have only a single pointer to the root of a tree --- which is required to be a {\it Binary Search Tree}, i.e. every node has at most two children and exactly a single key $k$, all the nodes in left subtree should have keys smaller then $k$, all the nodes in right subtree should have keys larger than $k$. The operations we are allowed to use, is to follow a pointer to any child or a parent, or do a rotation. Rotation of node $x$, with a parent $y$ basically makes $x$ a parent of $y$ preserving a BST property --- there is only one way of doing it locally, and it is presented on Figure~\ref{rotate}.
 \begin{figure}
@@ -146,7 +146,7 @@ We will state a set of properties of a data structure desirable by us. Some of t
 			\Oh(\log(|\sigma_i - \sigma_{i+1}| + 1) + 1)
 		\end{equation*}
 
-		This again guarantees good behaviour of the splay tree with respect to space local query sequences: in particular, if elements are accessed in consecutive order, we will expect average cost of an operation to be constant. 
+		This again guarantees good behaviour of the splay tree with respect to space local query sequences: in particular, if elements are accessed in consecutive order, we will expect average cost of an operation to be constant.
 	\item {\bf Unified Property} --- Splay trees are not known yet to have this property. This property was introduced by Iacomo in \cite{DBLP:conf/soda/Iacono01a}. \\
 		If the access sequence is $\sigma_1, \sigma_2, \ldots, \sigma_m$, then the amortized cost of the $i$-th operation is:
 		\begin{equation}
@@ -163,7 +163,7 @@ We will state a set of properties of a data structure desirable by us. Some of t
 		Let OPT($\sigma$) be the optimal cost of servicing access sequence $\sigma$ in the BST model (i.e. if one knows the entire sequence in the advance). Then dynamic optimality property is that total time of serving a sequence $\sigma$ is upper bounded by $c\, \mathrm{OPT}(\sigma)$ for some universal constant $c$.
 
 		Splay trees are conjectured to have this property, and it is the most important unsolved conjecture about splay trees at the time: it remains unsolved for almost 30 years.
-		
+
 		Note that, trivially a cost of serving sequence $\sigma$ with splay trees is upper bounded by $\Oh(\log n \, \mathrm{OPT}(\sigma))$. Demaine, Harmon, Iacono and Patrascu in~\cite{DBLP:conf/focs/DemaineHIP04} gave a data structure which achieves $\mathrm{cost}(\sigma) \leq \Oh(\mathrm{OPT}(\sigma)\, \log \log n)$.
 \end{itemize}
 \section{Splay operation}
@@ -422,7 +422,7 @@ We obtained desired bound on the difference of potential in single zig-zig step.
 As noted before stating the main lemma, by setting a constant weight function $w \equiv 1$, we get a $\Oh(\log n)$ upper bound on amortized complexity of single operation --- thus splay trees are, in average, at least as good as balanced BSTs. We will see how to set a weight function to prove a slightly weaker version of static optimality. The argument below is due to a LiveJournal post of David Eppstein, whose goal was to present static optimality of splay trees in a way that avoids mention of Shannon entropy as was done in the original paper \cite{DBLP:journals/jacm/SleatorT85}.
 
 Consider a tree $T$, and let $l_i$ be the level on which element $i$ is in tree $T$, and let $m_i$ to be the number of times that $i$ were accessed in the access sequence under consideration.
-Note that cost of processing this sequence with a tree $T$ is $\Oh(m + \sum_{i=1}^n m_i l_i)$. We will prove that for splay trees this cost is at most $\Oh(m + n^2 \log n + \sum_{i=1}^n m_i l_i)$. Lets take the weight function $w(i) = 3^{-l_i}$. Note that with non integral weights potential function might take negative values --- this is not a problem, we still have the important property:
+Note that cost of processing this sequence with a tree $T$ is $\Oh(m + \sum_{i=1}^n m_i l_i)$. We will prove that for splay trees this cost is at most $\Oh(m + n^2 + \sum_{i=1}^n m_i l_i)$. Lets take the weight function $w(i) = 3^{-l_i}$. Note that with non integral weights potential function might take negative values --- this is not a problem, we still have the important property:
 \begin{equation*}
 \mathrm{amortized\_time} = \mathrm{actual\_time} + \Delta\Phi
 \end{equation*}
