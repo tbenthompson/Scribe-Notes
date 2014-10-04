@@ -372,7 +372,7 @@ We perform a sequence of above defined operations until $x$ becomes a new root o
 \subsection{Analysis}
 To analyze a amortized complexity of a splay operation we will use the potential method. Lets consider an arbitrary function $w$ mapping nodes of a tree to positive real numbers. We will define potential function in terms of weight function $w$, prove a bound for amortized complexity of a splay operation in terms of $w$. Then, taking different functions as $w$ various properties (as static optimality, or working set property) will follow.
 
-In deed, for a weight function $w$, and a node $x$ of a tree let us define $s(x) := \sum_{y \in \mathrm{subtree}(x)} w(y)$ then $r(x) := \log(s(x))$ and finally:
+Indeed, for a weight function $w$, and a node $x$ of a tree let us define $s(x) := \sum_{y \in \mathrm{subtree}(x)} w(y)$ then $r(x) := \log(s(x))$ and finally:
 \begin{equation*}
 \Phi(S) := \sum_{x \, \mathrm{node}} r(x)
 \end{equation*}
