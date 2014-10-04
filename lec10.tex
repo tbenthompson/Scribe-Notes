@@ -1,0 +1,414 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{comment}
+\usepackage{filecontents}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf #2 } \hfill #3 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #1  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #4 \hfill #5} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[5]{\handout{Lecture #1}{#2}{#3}{#4}{Scribe: #5}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\let\mark\relax
+\DeclareMathOperator{\mark}{MARK}
+\DeclareMathOperator{\opt}{OPT}
+\def\polylog{\operatorname{polylog}}
+
+\begin{document}
+
+\lecture{10 --- October 2, 2014}{Advanced Algorithm}{Fall 2014}{Prof.\ Jelani Nelson}{Zhengyu Wang}
+
+In this lecture, we give more examples of primal-dual approach to design and analyze online algorithms. First, we give a roughly $\frac{e}{e-1}$-competitive randomized algorithm for ski-rental problem in Section~\ref{section:ski_rental}. Then we show an $O(\log m \cdot \log n)$-competitive randomized algorithm for online set cover problem in Section~\ref{section:set_cover}. In the end, we talk a little bit about approximation problems, and start to analyze the greedy algorithm for offline set cover problem in Section~\ref{section:approximation_algorithms}. 
+
+\section{Ski-rental Problem} \label{section:ski_rental}
+
+Recap the ski-rental problem: we want to ski for indefinite days, and for each day we need to choose whether to rent ski or to buy ski. We know 
+\begin{itemize}
+\item cost of renting: \$$1$
+\item cost of buying: \$$B$
+\end{itemize}
+
+Our goal is to minimize total cost. Last time we saw that deterministically we could get a $2$-competitive online algorithm. In this section, we show a randomized algorithm with competitive ratio $1+\frac{1}{(1+1/B)^B-1}$, which is roughly $\frac{e}{e-1}$ because as $B$ gets large, $(1+1/B)^B\approx e$, and the ratio goes down to $\frac{e}{e-1}$. Note that the worst case is $2$ when $B=1$, but $B$ should be more than $1$ because otherwise we will not rent skis at all. This bound is originally given by Karlin et al. \cite{karlin1994competitive}. But we will not show the algorithm as they did, instead we adopt a primal-dual approach to get this bound. (See Chapter 3 in \cite{buchbinder2009design}, which gives this algorithm as an example.)
+
+In the online version of primal LP, we see one constraint at a time. We have to make online decision to change the variables in order to satisfy the constraint. And through the time the variables should increase monotonously.  $z_i$ indicates whether to rent on the $i$-th day, and $x$ indicates whether we buy ski. There are $k$ days in total. For any day $i$, we have to either rent or buy ski.  
+
+\textbf{Primal LP} (a.k.a. covering LP): 
+\begin{equation}
+\begin{split}
+\min Bx+\sum_{i=1}^{k}{z_i} \\
+\text{s.t.} \forall i\in [k], x+z_i \ge 1 \\
+     x\ge 0, \forall i, z_i \ge 0
+\end{split}
+\end{equation}
+
+\textbf{Dual LP} (a.k.a. packing LP):
+\begin{equation}
+\begin{split}
+\max \sum_{i=1}^{k}{y_i} \\
+\text{s.t.} \sum_{i=1}^{k}{y_i} \le B\\
+     \forall i, 0 \le y_i \le 1
+\end{split}
+\end{equation}
+
+\subsection{Algorithm for Fractional Case}
+
+The main idea is to build up the online solution for both primal and dual. We maintain both solutions to be feasible. And we are going to show that the objective cost on the primal solution is not too much bigger than dual. 
+
+%Question. Are there are ways to intuitively understand what $y$ represent in the dual LP? 
+
+Below is the proposed algorithm, where $c$ is a constant which we will specify later. 
+
+\begin{enumerate}
+\item Initially $x$, all $z_i$ and $y_i$ are $0$
+\item When we see constraint $i$ online 
+\begin{itemize}
+\item if $x=1$, do nothing
+\item else
+\begin{enumerate}
+\item $z_i \gets 1-x$
+\item $x \gets (1+1/B)x+1/cB$
+\item $y_i \gets 1$
+\end{enumerate}
+\end{itemize}
+\end{enumerate}
+
+Now we need to analyze the ratio between the objective functions in the primal and dual, i.e., $cost_P/cost_D$, where $cost_P$ is the value of primal objective (on $x,z$), and $cost_D$ is the value of dual objective (on $y$). We also want to ensure that the solutions $x,z$ and $y$ are both feasible. 
+
+In every step, either both objectives don't change or $\Delta(cost_D)=1$ when we increase $y_i$ by $1$ at $i$-th iteration, and in that case the change in the primal objective is 
+
+\begin{equation}
+\begin{split}
+\Delta(cost_P)&=B\cdot \Delta x+z_i \\
+&=B\cdot ((1+1/B)x+1/cB-x)+(1-x) \\
+&=(x+1/c)+(1-x) \\
+&=1+1/c 
+\end{split}
+\end{equation}
+
+Therefore, the ratio $cost_P/cost_D$ is at most $1+1/c$.
+
+Now we just need to make sure that $x, z$ and $y$ are both feasible. 
+
+\begin{itemize}
+\item Primal feasibility. $z_i$ is just $1-x$, so the $i$-th constraint is exactly tight. And certainly we do not make anything negative. So the primal is feasible. 
+\item Dual feasibility. Definitely all the $y_i$ are between $0$ and $1$. What we need is just to make $\sum_{i=1}^{k}{y_i}\le B$, which is equivalent to show that we have $x<1$ for at most $B$ times during the iterations. because once $x$ rises up to $1$ we will not do updations anymore. 
+
+Let the increment to $x$ on the $i$-th day be $x_i$, so that $x=\sum_i{x_i}$. We have $x_1=\frac{1}{cB}$, and the sequence $x_i$ are geometric with ratio $q=1+1/B$. We have
+
+\begin{equation}
+\begin{split}
+\sum_{i=1}^{B}{x_i} &= \frac{1}{cB} \cdot \sum_{j=0}^{B-1}{q^j} \\
+&=\frac{1}{cB} \cdot \left(\frac{(1+1/B)^B-1}{1/B}\right) \\
+&=\frac{(1+1/B)^B-1}{c}
+\end{split}
+\end{equation}
+
+So we set $c=(1+1/B)^B-1$.
+\end{itemize}
+
+Now we can give the competitive ratio. Because 
+
+$$cost_D\le OPT_P \le cost_P \le (1+1/c)cost_D$$
+
+We have
+
+$$cost_P\le (1+1/c)OPT_P$$
+
+However, so far we have not solved the problem because we can't fractionally rent/buy on each day. The solution must be integral. We fix it by using randomization as follows.
+
+\subsection{Fixing to Integral Case}
+
+\begin{itemize}
+\item Initialize all $x, z_i, y_i\gets 0$
+
+\item Pick $\alpha \in [0,1]$ uniformly at random
+
+\item When seeing new constraints, will update $x, z_i, y_i$ as before (fractionally)
+
+\item We buy when $x \ge \alpha$, otherwise we rent
+\end{itemize}
+
+Now we prove that the expected cost of doing so equals to the cost of previous fractional solution. 
+\begin{proof} 
+We have 
+$$\mathbb{E}(\text{cost}) = \mathbb{E}(\$\text{spent buying})+\mathbb(\$\text{spent renting})$$
+
+Where 
+
+$$\mathbb{E}(\$\text{spent buying})=B\cdot \mathbb{P}(\text{buy})=B\cdot x$$
+
+And 
+
+\begin{equation}
+\begin{split}
+\mathbb{E}(\$\text{spent renting}) &=\sum_{i=1}^{k}{\mathbb{P}(\text{rented on day }i)} \\
+&= \sum_{i=1}^{k}{(1-(x_1+x_2+\ldots+x_{i-1}))} \\
+&= \sum_i{z_i}
+\end{split}
+\end{equation}
+\end{proof}
+
+\section{Online Set Cover} \label{section:set_cover}
+
+In this section, we show an $O(\log n \cdot \log m)$-competitive randomized algorithm for online set cover problem.  This is one more example of primal-dual online algorithms. The bound is due to Alon et al. \cite{alon2009online}. 
+
+\textbf{Problem Definition}. We have a universe of elements $\{1, \ldots, n\}$, and we have $m$ sets $\mathcal{C}=\{S_1, \ldots, S_m\}$, $S_i\subset [n]$. Our goal is to pick a sub-collection of the $S_i$ so that their union covers the universe, and we want to minimize the number of sets taken. In the online setting, we know that there are $m$ sets, but we do not know the elements they contain. And as one element comes online, we immediately know the sets which contain the element. If we have not covered the element, we have to choose a set to cover it. 
+
+Set cover is an NP-hard problem, and it is also NP-hard to get an $o(\log n)$-approximation solution. Therefore we do not expect poly-time online algorithms with better than $O(\log n)$ approximation ratio, because otherwise we could have better offline algorithm by pretending the elements coming online.  
+
+We show LP relaxations for set cover problem below. In the primal LP, we have one variable $x_S$ for each set $S\in \mathcal{C}$. 
+
+\textbf{Primal LP}:
+\begin{equation}
+\begin{split}
+\min \sum_{S\in \mathcal{C}}{x_S} \\
+\text{s.t.}\forall i\in [n], \sum_{i\in S}{x_S} \ge 1 \\
+x \ge 0
+\end{split}
+\end{equation}
+
+\textbf{Dual LP}:
+\begin{equation}
+\begin{split}
+\max \sum_{i=1}^{n} {y_i} \\
+\text{s.t.}\forall S\in \mathcal{C}, \sum_{i\in S}{y_i} \le 1 \\
+y \ge 0
+\end{split}
+\end{equation}
+
+\subsection{Algorithm for Fractional Case}
+We show the following algorithm 
+
+\begin{enumerate}
+\item Initialize $x=(1/m, \ldots, 1/m)$
+
+\item When we see constraint $i$
+\begin{enumerate}
+\item Suppose $i\in S_{j_1}, \ldots, S_{j_r}$
+\item While the constraint is not satisfied, run a continuous process where $x_S$ changes according to $\frac{\mathrm{d}x_S(t)}{dt}=x_S(t)$ simultaneously for $S=S_{j_1}, \ldots, S_{j_r}$ until the constraint is satisfied. (Note that after $x_S$ evolves $T$ time steps, it multiplicatively increases by $e^T$ factor)
+\end{enumerate}
+\end{enumerate}
+
+Let $OPT$ denote the optimal solution (where $OPT$ is a collection of sets in $\mathcal{C}$, and $|OPT|$ denotes the minimum number of sets to cover the universe).  Whenever we run the evolution, $x_S$ is increasing for some $S\in OPT$. For a particular $S \in OPT$, it is impossible to evolve for longer than $\ln m$ seconds. Hence the process lasts for at most $|OPT|\cdot \ln m$ seconds. 
+
+\begin{equation}
+\begin{split}
+\frac{\mathrm{d}(cost_P(t))}{\mathrm{d}t} &= \frac{\mathrm{d}(x_{S_{j_1}}{(t)})+\ldots+x_{S_{j_r}}{(t)}}{\mathrm{d}t} \\
+&=x_{S_{j_1}}(t)+\ldots+x_{S_{j_r}}(t) \le1
+\end{split}
+\end{equation}
+
+Therefore, at the end of algorithm, $cost_P\le OPT \cdot \log m$. Note that the catch here is that this is not an integral solution. We will fix it later. 
+
+The previous analysis adopts purely primal view. We can also analyze it by primal-dual approach. In the new algorithm, we 
+\begin{enumerate}
+\item Maintain $x_S$ as before
+\item $y$ is initially set to $0$
+\item As we run evolution to satisfy the $i$-th constraint, we also evolve $y_i$ according to $\frac{\mathrm{d}y_i(t)}{\mathrm{d}t}=1$.
+\end{enumerate}
+
+\begin{claim}
+(1) $x$ is feasible; (2) $\frac{y}{\log m}$ is dual feasible.
+\end{claim}
+\begin{proof}
+We need to show $\forall S\in \mathcal{C}$, $\sum_{i\in S} {y_i}\le \log m$, i.e., the dual constraints are only unsatisfied by $\log m$ factor. 
+
+Let's focus on a particular set $S$. Because whenever $\sum_{i\in S}{y_i}$ increases, we also simultaneously increase $x_S$, for every $i\in S$. We have already known that $x_S$ can only increase for $\le \log m$ seconds (before it becomes $1$). Therefore, $\sum_{i\in S}{y_i}\le \log m$.
+\end{proof}
+
+Because 
+
+$$\frac{1}{\log m}\cdot cost_D(y) \le cost(\frac{y}{\log m})\le OPT_P\le cost_P(x)\le cost_D(y)$$
+
+We get $cost_P(D)\le \log m \cdot OPT$.
+
+\subsection{Fixing to Integral Case}
+Now we are trying to get integral solution. 
+
+\textbf{(1) First attempt} 
+\begin{enumerate}
+\item At the very beginning, for every $S\in \mathcal{C}$, pick uniformly random $\alpha_S\in [0,1]$
+
+\item Once $x_S\ge \alpha_S$, take $S$ into our solution (the value of $x_S$ still remains like before)
+\end{enumerate}
+
+We can show that $\mathbb{E}(\text{integral solution}) = cost(\text{fractional solution})$.
+
+The problem of this attempt is that the possibility of getting a feasible solution might be very small. We can fix it by boosting the possibility as follows.
+
+\textbf{(2) Fixing}
+
+At some point $i$ in request sequence
+\begin{enumerate}
+\item For each $S$, we will pick $\alpha_S^{(1)}, \alpha_S^{(2)}, \ldots, \alpha_S^{(r)}\in [0,1]$ independently uniformly at random, where $r=c \log n$ and $c$ is a constant. 
+\item If $x_S\ge \alpha_S^{(j)}$ for any $j$, then put $S$ into our solution
+\end{enumerate}
+
+The fixing multiplies the expected competitive ratio by $O(\log n)$. On the other hand, by the fact that $1-p\le e^{-p}, p\in [0,1]$, we can prove that for any specific constraint, the chance that the solution does not satisfy it is $O(n^{-c})$, and by union bound we can prove that the solution is feasible with high possibility. 
+
+\section{Approximation Algorithms} \label{section:approximation_algorithms}
+
+Now we are going to move on to approximation algorithms, which is a new but related topic. The basic gist is that:
+\begin{enumerate}
+\item We need to solve some optimization problems, for example, (offline) set cover problem
+\item The best known algorithms are slow (maybe the problems are NP-hard)
+\item We want a fast algorithm which produces a solution with cost $\le \alpha \cdot OPT$ where $\alpha$ is relatively small (for minimization problems)
+\end{enumerate}
+
+See the books \cite{WilliamsonShmoys,vazirani2001approximation} for more information about approximation algorithms. 
+
+\textbf{Example} (Set Cover Problem). There are $n$ items and $m$ sets. Each set $S$ has cost $c_S$. We want to minimize $\sum_{S\text{ chosen}}{c_S}$ s.t. the chosen sets cover $\{1,\ldots,n\}$.
+
+\textbf{The Algorithm}. We will show an algorithm and analysis due to \cite{Chvatal79,Lovasz75}. If all the $c_S$ are $1$,  the familiar greedy algorithm is: at every step, as long as there is an element that has not been covered yet, we choose the set which covers the most of the uncovered elements so far. There is a straight-forward corresponding algorithm for non-uniform costs, which is, as long as there exists uncovered element, put $S$ into our solution s.t. $S$ minimizes $\frac{c_S}{n_S}$, where $n_S$ is $\text{the number of new elements } S \text{ covers}$.
+
+Now we formulate the problem in primal and dual LP in order to analyze its performance. 
+
+\textbf{Primal LP}:
+\begin{equation}
+\begin{split}
+\min \sum_{S}{c_S\cdot x_S} \\
+\text{s.t.} \forall i\in [n], \sum_{S\ni i}{x_S}\ge 1 \\
+x\ge 0
+\end{split}
+\end{equation}
+
+\textbf{Dual LP}:
+\begin{equation}
+\begin{split}
+\max \sum_{i=1}^{n}{y_i} \\
+\text{s.t.} \forall S\in \mathcal{C}, \sum_{i\in S}{y_i} \le c_S \\
+y\ge 0
+\end{split}
+\end{equation}
+
+
+\textbf{Primal-Dual Analysis}:
+
+\begin{itemize}
+\item Initially $x,y=0$
+\item When we take some set $S$, 
+\begin{itemize} 
+\item Set $x_S=1$
+\item For each newly covered $i\in S$, set $y_i = \frac{c_S}{n_S}$, where $n_S$ is the number of newly covered elements at this point. 
+\end{itemize}
+\end{itemize}
+
+Note that the primal and dual costs are equal. Now the primal is obviously feasible, but the dual would not be feasible. We are going to see next time, the dual constraint would be violated by at most  $\log n$ multiplicative factor. So after scaling down, we will get a feasible solution. This approach of scaling down to deal with dual feasibility violation is called ``dual fitting''. 
+
+
+\begin{filecontents}{shortbib.bib}
+
+@article{karlin1994competitive,
+  title={Competitive randomized algorithms for nonuniform problems},
+  author={Karlin, Anna R and Manasse, Mark S and McGeoch, Lyle A and Owicki, Susan},
+  journal={Algorithmica},
+  volume={11},
+  number={6},
+  pages={542--571},
+  year={1994},
+  publisher={Springer}
+}
+
+@article{Lovasz75,
+  author    = {L{\'{a}}szl{\'{o}} Lov{\'{a}}sz},
+  title     = {On the ratio of optimal integral and fractional covers},
+  journal   = {Discrete Math.},
+  year      = {1975},
+  volume    = {13},
+  pages     = {383--390},
+}
+
+@article{Chvatal79,
+  author = {Vasek Chv\'{a}tal},
+  title = {A greedy heuristic for the set-covering problem},
+  journal = {Math. Oper. Res.},
+  volume = 4,
+  year = 1979,
+  pages = {233--235},
+}
+ 
+@article{buchbinder2009design,
+  title={The design of competitive online algorithms via a primal: dual approach},
+  author={Buchbinder, Niv and Naor, Joseph},
+  journal={Foundations and Trends in Theoretical Computer Science},
+  volume={3},
+  number={2--3},
+  pages={93--263},
+  year={2009},
+  publisher={Now Publishers Inc.}
+}
+
+@book{WilliamsonShmoys,
+  author    = {David P. Williamson and
+               David B. Shmoys},
+  title     = {The Design of Approximation Algorithms},
+  year      = {2011},
+  publisher = {Cambridge University Press},
+}
+ 
+@article{alon2009online,
+  title={The online set cover problem},
+  author={Alon, Noga and Awerbuch, Baruch and Azar, Yossi and Buchbinder, Niv and Naor, Joseph},
+  journal={SIAM Journal on Computing},
+  volume={39},
+  number={2},
+  pages={361--370},
+  year={2009},
+  publisher={SIAM}
+}
+
+@book{vazirani2001approximation,
+  title={Approximation algorithms},
+  author={Vazirani, Vijay V},
+  year={2001},
+  publisher={springer}
+}
+
+\end{filecontents}
+\bibliographystyle{alpha}
+\bibliography{shortbib}
+
+\end{document}
