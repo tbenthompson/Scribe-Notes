@@ -372,7 +372,7 @@ We perform a sequence of above defined operations until $x$ becomes a new root o
 \subsection{Analysis}
 To analyze a amortized complexity of a splay operation we will use the potential method. Lets consider an arbitrary function $w$ mapping nodes of a tree to positive real numbers. We will define potential function in terms of weight function $w$, prove a bound for amortized complexity of a splay operation in terms of $w$. Then, taking different functions as $w$ various properties (as static optimality, or working set property) will follow.
 
-In deed, for a weight function $w$, and a node $x$ of a tree let us define $s(x) := \sum_{y \in \mathrm{subtree}(x)} w(y)$ then $r(x) := \log(s(x))$ and finally:
+Indeed, for a weight function $w$, and a node $x$ of a tree let us define $s(x) := \sum_{y \in \mathrm{subtree}(x)} w(y)$ then $r(x) := \log(s(x))$ and finally:
 \begin{equation*}
 \Phi(S) := \sum_{x \, \mathrm{node}} r(x)
 \end{equation*}
@@ -416,7 +416,7 @@ Now we plug this into the bound for a difference of potential:
 	& \leq 3 (r'(x) - r(x)) - 2
 \end{align*}
 
-We obtained desired bound on the difference of potential in single zig-zig step. The amortized cost of this step is hence upper bounded by $3(r'(x) - r(x))$. One can obtain a same bound for a zig-zag step, and a similar (up to constant) for a zig step. In every splay operation, a zig step is performed at most once, the total cost of the splay operation is upper bounded by a sum of expressions of form $3(r'(x) - r(x)$, and this sum telescopes to a $\Oh(1 + r'(\mathrm{root}) - r(x))$, which is $\Oh(1 + \log\frac{W}{r(x)})$.
+We obtained desired bound on the difference of potential in single zig-zig step. The amortized cost of this step is hence upper bounded by $3(r'(x) - r(x))$. One can obtain a same bound for a zig-zag step, and a similar (up to constant) for a zig step. In every splay operation, a zig step is performed at most once, the total cost of the splay operation is upper bounded by a sum of expressions of form $3(r'(x) - r(x)$, and this sum telescopes to a $\Oh(1 + r'(\mathrm{root}) - r(x))$, which is $\Oh(1 + \log\frac{W}{s(x)})$.
 \end{proof}
 \section{Concrete amortized complexity bounds}
 As noted before stating the main lemma, by setting a constant weight function $w \equiv 1$, we get a $\Oh(\log n)$ upper bound on amortized complexity of single operation --- thus splay trees are, in average, at least as good as balanced BSTs. We will see how to set a weight function to prove a slightly weaker version of static optimality. The argument below is due to a LiveJournal post of David Eppstein, whose goal was to present static optimality of splay trees in a way that avoids mention of Shannon entropy as was done in the original paper \cite{DBLP:journals/jacm/SleatorT85}.
@@ -438,7 +438,7 @@ First note that sum of all weights of a tree is at most constant:
 
 We observe that $\Phi$ takes values in the interval $[-c n^2, C' n]$ --- indeed: $w(i) \geq 3^{-n}$, so  $s(x) \geq 3^{-n}$, then $r(x) \geq -c n$, and $\sum_x r(x) \geq -c n^2$. On the other hand sum of all weights is at most constant, so $s(x) \leq C$, and $r(x) \leq C'$ --- sum of all $r(x)$ is at most $C' n$.  Now, as $\Phi$ takes values in an interval of length $\Oh(n^2)$, we conclude that $- \Delta\Phi = \Oh(n^2)$.
 
-We need to prove that amortized time is at most $\Oh(m + \sum_{i=1}^n m^i l_i)$. By the main lemma, amortized cost of a single operation is at most $\Oh(1 + \log(\frac{W}{s(i)}))$, and as $W$ is constant, and $s(i) \geq 3^{-l_i}$ this cost is upper bounded by $\Oh(1 + \log(3^{l_i})) = \Oh(l_i)$, and amortized cost of a whole sequence is indeed $\sum_{i=1}^n l_i m_i$.
+We need to prove that amortized time is at most $\Oh(m + \sum_{i=1}^n m^i l_i)$. By the main lemma, amortized cost of a single operation is at most $\Oh(1 + \log(\frac{W}{s(i)}))$, and as $W$ is constant, and $s(i) \geq 3^{-l_i}$ this cost is upper bounded by $\Oh(1 + \log(3^{l_i})) = \Oh(1+l_i)$, and amortized cost of a whole sequence is indeed $\Oh(\sum_{i=1}^n (1 + l_i) m_i) = \Oh(m + \sum_{i=1}^n l_i m_i)$.
 \qed
 
 \bibliography{lec7}{}
