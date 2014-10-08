@@ -1,0 +1,350 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{observation}[theorem]{Observation}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{11 --- October 7, 2013}{Fall 2013}{Prof.\ Jelani Nelson}{David Ding}
+
+\section{Overview}
+
+In the last lecture we talked about set cover:
+\begin{itemize}
+    \item Sets $S_1, \ldots, S_m \subseteq \{1, \ldots, n\}$.
+    \item $S$ has cost $c_S$.
+    \item Goal: Cover all of $[n]$ with minimal cost.
+\end{itemize}
+One algorithm is the greedy algorithm: while there exists an uncovered element, pick $S$
+minimizing $\frac{c_s}{\text{\# new elements covered by S}}$.
+
+In this lecture we 
+\begin{itemize}
+    \item Finish study approximation algorithms via dual fitting.
+    \item Learn about LP Integrality Gaps
+    \item Define poly-time approximation schemes (PTAS, FPTAS, FPRAS)
+\end{itemize}
+
+\section{Approximation algorithms via dual fitting}
+\subsection{Greedy algorithm for set cover}
+\begin{theorem}
+    The greedy algorithm is an $O(\log n)$ approximation.
+\end{theorem}
+The unweighted case is proven  in \cite{JohnsonJCSS74} and \cite{LovaszDM75}.
+The weighted case is proven in \cite{ChvatalMOR79}.
+
+\begin{proof}
+We consider the following LP relaxation for set cover.
+
+\begin{itemize}
+    \item \textbf{Primal}: minimize $\sum_S a_S x_S$ with the constraints
+    $\forall i \in [n]$, $\sum_{i \in S} X_S \geq 1$,
+    and $\forall S$, $x_S \geq 0$.
+
+    \item \textbf{Dual}: maximize $\sum_{e=1}^n$, with the constraints
+    $\forall S$, $\sum_{e \in S} y_e \leq c_S$ and $\forall e$, $y_e \geq 0$.
+\end{itemize}.
+We will build the primal solution,
+and show how we can maintain the dual solution.
+When we take set $S$ into our cover:
+\begin{enumerate}
+    \item Set $x_S \leftarrow 1$ in primal.
+    \item For each newly covered element $e$, set $y_e = \frac{c_S}{\text{\# elements newly covered by S}}$.
+\end{enumerate}
+We see that $\mathrm{cost}_P(x) = \mathrm{cost}(y)$.
+It is clear that this procedure makes $x$ feasible.
+\begin{claim}
+    $\frac{y}{H_c}$ is feasible.
+\end{claim}
+\begin{proof}
+    We need to show that $\forall S$, $\sum_{e \in S} y_e \leq c_S H_n$.
+    Let us order the elements of $S$ by when they are first covered, $e_1, e_2, \ldots, e_k$
+    (where $|S|=k$).
+    Note that $e_i$ is not necessarily covered by $S$.
+    Right before $e_i$ was covered, we could have chosen $S$ at price
+    $\frac{c_S}{k-i+1}$,
+    so that $y_{e_i} \leq \frac{c_S}{k-i+1}$.
+    Hence, 
+    \[
+        \sum_{e \in S} y_e \leq c_S \sum_{i=1}^k \frac{1}{i} = c_S H_k \leq c_S H_n.
+    \]
+\end{proof}
+Hence, the greedy algorithm gives a $\log n $ approximation.
+\end{proof}
+
+\subsection{Vertex cover}
+We now consider the vertex cover problem.
+The input is an undirected graph $G=(V, E)$, where $|V|=n$ and $|E|=m$.
+We want to pick the minimal $S \subseteq V$ such that each edge $e \in E$ is incident upon at least one vertex of $S$.
+Note that vertex cover is a special case of set cover,
+where each vertex corresponds to a set, and each edge to an element in the universe.
+
+There is a greedy algorithm for vertex cover. Namely, while there is an uncovered edge $e = (u, v)$,
+we add both $u$ and $v$ to the vertex cover.
+
+\begin{claim}
+    The greedy algorithm gives a 2-approximation.
+\end{claim}
+\begin{proof}
+    There is a simple proof, as detailed in the CS 124 notes.
+    We will present another proof using primal-dual approach.
+    We consider the following LP relaxation:
+    \begin{itemize}
+        \item \textbf{Primal}: Minimize $\sum_{v=1}^n x_v$ where $\forall e=(u, v)$, $x_u+x_v \geq 1$
+            and $x \geq 0$.
+        \item \textbf{Dual}: Maximize $\sum_{e\in E} y_e$ where $\forall v \in V$,
+            $\sum_{v \in e} y_e \leq 1$ and $y \geq 0$.
+    \end{itemize}
+    We again use dual fitting.
+    When greedy covers an edge $e=(u, v) \in E$, set $x_u  \leftarrow 1$
+    and $x_v \leftarrow 1$, and set $y_e \leftarrow 1$.
+    These give feasible solutions.
+    Moreover, primal cost is at most twice the dual cost,
+    so this is a 2-approximation.
+\end{proof}
+
+\section{LP Integrality Gaps}
+The question we want to answer is, what is the limit of using a given LP relaxation?
+
+In our proofs, we achieve $\mathrm{cost} \leq \alpha \mathrm{OPT}(LP)$.
+But if there is some gap $\beta \mathrm{OPT}{LP} \leq \mathrm{OPT}(IP)$
+for some particular instance, then
+we cannot hope to achieve $\alpha < \beta$ via LP relaxation.
+We call $\beta$ the integrality gap.
+\begin{example}
+    Consider vertex cover.
+    We had the constraint that $\forall u$, $x_u \geq 0$.
+    This should have been $x_u = \{0, 1\}$,
+    but we relaxed it to $x_u \geq 0$.
+    This can cause some problems.
+    For instance, consider the complete graph on $n$-vertices, $K_n$.
+    Then, we can assign $x_u \leftarrow \frac{1}{2}$,
+    and in fact, this is an optimal solution.
+    Hence, $\mathrm{OPT}(LP)=\frac{n}{2}$.
+    However, with integer programming, $\mathrm{OPT}(IP) = n-1$,
+    since we must take all but 1 vertex.
+    This gives an integrality gap of $2$.
+\end{example}
+\begin{example}
+    Consider set cover.
+    We define $n = 2^q-1$ for some $q > 0$.
+    The elements of the universe are in correspondance with elements of $\mathbb{F}_2^q \backslash \{0\}$.
+    Then, sets are also in correspondence with elements
+    of $\mathbb{F}_2^q$: if $\alpha \in \mathbb{F}_2^q$,
+    $S_\alpha = \{e: \langle \alpha, e\rangle = 1\}$.
+
+    First consider the fractional solution.
+    Each element is contained in exactly half the sets.
+    Hence, we can take $x_u = \frac{2}{m}$ for all $m$ (i.e., $\frac{1}{\text{\# sets containing e}}$),
+    so $\mathrm{OPT}(LP) \leq 2$.
+
+    For the integer solution, suppose we have a solution with $q-1$ sets,
+    $S_{\alpha_1}, \ldots, S_{\alpha_{q-1}}$.
+    Then, $\bigcap_{i=1}^{q-1} S_{\alpha_{q-1}}= \{0\}$, a dimension zero vector space.
+    But
+    \[
+        \bigcap_{i=1}^{q-1} S_{\alpha_{q-1}}= \{e: \forall i \in 1, \ldots, q-1, \langle \alpha_i, e \rangle = 0\}
+    \]
+    has codimension at most $q-1$, so it has dimension at least 1.
+    We conclude that the gap is $q/2 = O(\log n)$.
+\end{example}
+\begin{remark}
+    The integrality problem shows that the relaxation we considered cannot achieve a certain approximation gap.
+    A stronger statement would be to show that unless $\mathbf{P}=\mathbf{NP}$,
+    we cannot achieve a better approximation gap.
+    These theorems typically use the PCP theorem.
+\end{remark}
+
+\section{Polynomial time approximation schemes}
+We consider minimization problems.
+\begin{definition}
+    A problem $m$ admits a PTAS (polynomial time approximation scheme)
+    if $\forall \epsilon \in (0, 1)$ fixed,
+    and for all problem size $n$,
+    we can achieve a $(1+\epsilon)$-approximation in time $O(n^{f(1/\epsilon)})$.
+\end{definition}
+\begin{definition}
+    A problem $m$ admits a FPTAS (fully polynomial time approximation scheme)
+    if $\forall \epsilon \in (0, 1)$ fixed,
+    and for all problem size $n$,
+    we can achieve a $(1+\epsilon)$-approximation in time $O\left(\mathrm{poly}\left(\frac{n}{\epsilon}\right)\right)$.
+\end{definition}
+\begin{definition}
+    A problem $m$ admits a FPRAS (fully polynomial time randomized approximation scheme)
+    if $\forall \epsilon \in (0, 1)$ fixed,
+    and for all problem size $n$,
+    we can achieve a $(1+\epsilon)$-approximation in time $O\left(\mathrm{poly}\left(\frac{n}{\epsilon}\right)\right)$
+    with probability at least $\frac{2}{3}$.
+\end{definition}
+\begin{remark}
+    By running a FPRAS multiple times and taking medians,
+    we can reduce the error probability to be arbitrarily small.
+\end{remark}
+
+We will provide a PTAS/FPTAS for knapsack and a FPRAS for counting solutions to DNF \cite{KarpJA89}.
+
+\subsection{Knapsack Problem}
+We have a knapsack with capacity $W$
+and given items with weights $w_1, \ldots, w_n$ and values $v_1, \ldots, v_n$.
+We want to pack our knapsack to maximize the total value $\sum_{i=1}^n v_i x_i$
+with constraints $\sum_{i=1}^n w_i x_i \leq W$ with $x_i \in \{0, 1\}$.
+This problem is $\mathbf{NP}$-hard.
+There are dynamic programming solutions for the knapsack problem.
+For example, there is a $O(nW)$ algorithm.
+We set \[
+    f(i, b) = 
+    \begin{cases}
+        \hfill 0 \hfill & \text{ if $i=0$} \\
+        \hfill \max(f(i-1, b), v_i+f(i-1, b-w_i) \text{ if $b-w_i$} \geq 0) \hfill & \text{ if $i=0$}
+    \end{cases}
+\]
+This does not violate the NP-hardness result, since $W$ takes only $\log W$ bits to specify,
+so the algorithm is exponential in the size of the problem.
+
+Another dynamic programming approach gives time $O(nV)$,
+where $V = \sum_{i=1}^n v_i$.
+Namely, we define
+\[
+    f(i, p)=\text{min weight to get value exactly $v$ using only items from $\{1, \ldots, i\}$}.
+\]
+
+Suppose we relax the last constraint to $0 \leq x_i \leq 1$.
+Then, we would sort the items in decreasing order by $\frac{v_i}{w_i}$
+and fill knapsack in this order (put as much of item $i$ as you can before starting to pack item $i+1$).
+This algorithm can be bad,
+when, for example, $v_1=1+\epsilon$, $w_1 =1$, $v_w=W$, $w_2=W$.
+This is only a $W$-approximation.
+
+But let us now consider a modified greedy  algorithm that avoid this bad case.
+Namely, we take either the output of greedy algorithm or we take the most valuable item,
+depending on which has greater value.
+\begin{claim}
+    The above algorithm is a 2-approximation.
+\end{claim}
+\begin{proof}
+    \begin{lemma}
+        \label{lemma:lemma1}
+        Suppose the greedy algorithm takes items 
+        \[
+            \frac{v_1}{w_1} \geq \frac{v_w}{w_2} \geq \cdots \geq \frac{v_{k-1}}{w_{k-1}}
+        \]
+        and we have no room for the $k$-th item. Then, $\sum_{i=1}^k v_i \geq \mathrm{OPT}$.
+    \end{lemma}
+    \begin{proof}
+        The sum $\sum_{i=1}^k v_i$ is even larger than the fractional knapsack's optimal solution,
+        which is at least the optimum of the integral knapsack problem.
+    \end{proof}
+    Now, $\sum_{i=1}^k v_i= (v_1+\ldots+v_{k-1}) + v_k \geq \mathrm{OPT}$ by the lemma.
+    Hence, one of $v_1 + \ldots + v_{k-1}$ or $v_k$ is at least $\frac{\mathrm{OPT}}{2}$ as desired.
+\end{proof}
+
+\begin{observation}
+    If no item has value $>$ $\epsilon \mathrm{OPT}$, then the greedy algorithm achieves $\geq$ $(1-\epsilon) \mathrm{OPT}$.
+\end{observation}
+\begin{observation}
+    At most $\left \lfloor \frac{1}{\epsilon} \right \rfloor$ items in optimal solution have value $> \epsilon \mathrm{OPT}$.
+\end{observation}
+Now, we present a PTAS algorithm for the knapsack problem.
+We first guess the set $S$
+consisting of the elements in the optimal solution of value at least $\epsilon \mathrm{OPT}$.
+Then, $|S| \leq \left \lfloor \frac{1}{\epsilon} \right \rfloor$.
+We then remove all items remaining which have value bigger than anything in $S$.
+Finally, we run the greedy algorithm on what is left,
+and our knapsack will contain $S$ and whatever the greedy algorithm chooses.
+We can do this for all $O(n^{1/\epsilon})$ possible subsets of size at most $\frac{1}{\epsilon}$,
+so the running time is $O(n^{1/\epsilon}  \mathrm{poly}(n))$.
+
+\begin{claim}
+    The profit achieved by this scheme is  $\geq (1-\epsilon) \mathrm{OPT}$.
+\end{claim}
+\begin{proof}
+    Suppose we guess $S$ correctly.
+    Then, $\mathrm{OPT} = v(S) + \mathrm{OPT}'$,
+    where $v(S)$ is the value of packing $S$ and $\mathrm{OPT}'$ is the best packing of items of value at most $\epsilon \mathrm{OPT}$.
+    Our scheme then achieve $v(S) + (\text{greedy on rest})$.
+
+    Now let us analyze how the greedy algorithm performs. We know that $v_k \leq \epsilon \mathrm{OPT}$
+    (recall that $v_k$ is the value of the $k$-th and last element that the fractional greedy algorithm tries to include).
+    Also, we know that the greedy output plus $v_k$ is at least $\mathrm{OPT}'$ by Lemma \ref{lemma:lemma1}.
+    Hence, greedy achieves a profit of at least $ \mathrm{OPT}' - \epsilon \mathrm{OPT}$,
+    so our scheme achieves at least $(1-\epsilon)\mathrm{OPT}$.
+\end{proof}
+
+
+\begin{thebibliography}{42}
+
+\bibitem{JohnsonJCSS74}
+David~Johnson.
+\newblock Approximation algorithms for combinatorial problems.
+\newblock {\em J. Comput. Syst. Sci.}, 9(3):256--278, 1974.
+
+\bibitem{LovaszDM75}
+    L\'{a}szl\'{o}~Lov\'{a}sz.
+\newblock On the ratio of optimal integral and fractional covers.
+\newblock {\em Discrete Mathematics}, 13(4):383--390, 1975.
+
+\bibitem{ChvatalMOR79}
+    Va\v{s}ek~Chv\'{a}tal.
+\newblock A greedy heuristic for the set covering problem.
+\newblock {\em Math. Oper. Res.}, 4(3):233--235, 1979.
+
+\bibitem{KarpJA89}
+    Richard~Karp, Michael~Luby, Neal~Madras.
+\newblock Monte-carlo approximation algorithms for enumeration problems.
+\newblock {\em J. Algorithms}, 10(3):429--448, 1989.
+\end{thebibliography}
+
+\end{document}
