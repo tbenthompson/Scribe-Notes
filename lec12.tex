@@ -1,0 +1,235 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+
+\newcommand{\sse}{\subseteq}
+\newcommand{\ep}{\epsilon}
+\newcommand{\lqq}{``}
+
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{12 ---  October 9, 2014}{Fall 2014}{Prof.\ Jelani Nelson}{Yifan Wu}
+
+\section{Overview}
+
+In the last lecture we talked about dual fitting, LP Integrality Gaps and introduced poly-time approximation schemes.
+
+
+In this lecture we will talk about:
+
+\begin{enumerate}
+\item FPTAS (knapsack)
+\item FPRAS (DNF counting)
+\item Semi definite Programming (Max Cut)
+\end{enumerate}
+
+
+\section{FPTAS Knapsack}
+\subsection{Description}
+We will show that for every $\ep > 0$, there exists a $(1 + \ep)-$approximation algorithm for Knapsack running in time poly$(n, 1/\ep)$. Today we are going to show how to achieve $O(\frac{n^3}{\epsilon})$, but's possible to get $O(n\lg (\frac{1}{\epsilon}) + \frac{1}{\epsilon^4})$ due to \cite{Lawler79}.\\
+
+The key idea is to use rounding. Given the setup, knapsack for size $W$ $n$ items with weight $w_1,...,w_n$, values $v_1, ..., v_n$, we know $\exists O(nV)$ run time algorithm DP, $V=\sum_{i=1}^nv_i$. To get FPTAS, set 
+$$v_i' = \lfloor\frac{n}{\epsilon}\cdot \frac{v_i}{v_{max}}\rfloor$$
+
+Run dynamic programming algorithm (optimal) over the new input $V'$, and we then have an $O(nV')$ algorithm, where $V' \le n \cdot \underset{i}{max} ~ (v_i') \le \frac{n^2}{\epsilon}$. 
+
+%%%%
+\subsection{Analysis}
+Basic idea: we know that $OPT' \ge v_{max}' \ge \frac{n}{\ep}$. After rounding, any set $S\subseteq [n]$ loses at most $|S|\le n$ value, which is $\le \epsilon ~OPT'$ (per the previous inequality).
+
+{\it Claim:} if DP on rounded instance returns a set $A \subseteq [n]$ then $v(A)\ge (1- \ep) OPT$.
+\begin{proof}
+$\forall$ sets $S\sse [n]$, $\alpha v(S) - |S|\le v'(S) \le \alpha v(S)$ where $\alpha = \frac{n}{\ep v_{max}}$. Let $A^*$ be some optimal set for original input before rounding, then
+$$v(A) \ge \frac{1}{\alpha}v'(A) \ge \frac{1}{\alpha}v'(A^*) \ge v(A^*) - \frac{1}{\alpha}|A^*| \ge OPT - \frac{n}{\alpha} \ge OPT - \ep v_{max}\ge OPT - \ep OPT$$
+\end{proof}
+
+%%%%%%%
+\subsection{Existence of FPTAS Algorithms}
+We don't always have a FPTAS algorithm. One example is the bin packing problem, which is defined as $n$ items with sizes $s_1, s_2,... s_n\in \{0,1\}$. Bins have capacity exactly $1$. The goal is to pack all items into as few bins as possible. FPTAS for bin packing use $\le (1+\ep) \alpha (OPT ~ \#\text{ of bins})$. Run time is $poly (n,\frac{1}{\ep})$ No FPTAS unless $P=NP$
+\begin{proof}
+If we have a FPTAS run it with $\ep << \frac{1}{n}$, giving $(1 + \ep)OPT=OPT+c$ where $c$ is some small constant. So we made FPTAS produce the optimum, which is not possible. Contradiction.
+\end{proof}
+The term we used when there is no FPTAS is when the problem is strongly NP-complete.
+
+
+%%%%%%%%%%%%%%%%%%%%%
+\section{FPRAS DNF Counting}
+Like FPTAS, but algorithm is randomize and has $\le \frac{1}{3}$ chance of failing to find a good solution. We are going to look at the DNF counting problem.
+
+Recall that DNF, which stands for Disjunctive Normal Form, problem takes input formula $C_1 \vee C_2 \vee, ..., \vee C_m$, $C_j=(\overline{x_{j_1}} \wedge x_{j_2} \wedge,...,\wedge x_{j_r})$. Given a DNF formula, count the \# of satisfying assignment. We know that DNF satisfiability is in P, but how about DNF counting? Note that counting is an NP-Hard problem, since if you could count this SAT is solved. 
+
+\subsection{\#P}
+
+In fact there is a complexity class, $\#P$. DNF is $\#P-$Complete\footnote{The name came from counting, thus \lqq\#"}. We could count solutions to DNF up to $1+\ep$: there is an FPRAS due to \cite{KarpLM89}.
+
+The key idea is to randomly estimate the fraction. We have $n$ variables, $m$ clauses, some of $2^n$ variable assignments satisfy our DNF formula, let's say a $p$ fraction. We want to estimate $p$. Sample and see what empirical results' mean is. However this doesn't work. One bad example is $x_1\wedge x_2 \wedge ..., \wedge x_n$ . The core problem is that $p$ could be small, and the trick here is try to make it not that small.
+
+\subsection{KLM}
+
+Let $S_i$  be the set of assignments satisfying $C_i$, set $B = \cup_{i=1}^m S_i$, and we want to estimate $|B|$. Define $B' = \{(i,x) : \text{assignment $x$ satisfies $C_i$}\}$. $|B'| = \sum_{i=1}^m |S_i|$ hwere $|S_i| = 2^{n-(\#\text{ of literals in }C_i)}$. Let's estimate $p' = \frac{|B|}{|B'|}$. Note that $p' \ge \frac{1}{m}$. \\
+
+Algorithm to estimate $p'$: pick a random element of $B'$ and check if it's in $B$. Bijectively map $B$ with $\{(i,x)\} \in B'$ where $C_i$ is the first clause $x$ satisfies. Pick a random element of $B'$. 
+\begin{enumerate}
+\item First pick a clause randomly, clause $i$ is picked w.p. $\frac{|S_i|}{\sum_{j=1}^m |S_j|}$
+\item Then pick a random satisfying assignment for $C_i$ uniformly.
+\end{enumerate}
+
+In summary, the algorithm is:
+
+\begin{enumerate}
+\item Sample $t$ elements from $b'$.
+\item Let $\tilde{p}'$ be fraction of $t$ sampled elements in $B$.
+\item Output $\tilde{p}' |B'|$.
+\end{enumerate}
+
+\subsubsection{Analysis}
+Using the Chernoff bound, let $X_1,...,X_t$ be s.t. $X_j = 1$ if $j$th sampled element is in $B$, and $0$ otherwise. Let $X=\sum_{i=1}^{t}{X_j}, \mathbb{E} X = p' \cdot t$
+$$\mathbb{P} (|X - \mathbb{E}X| > \ep \mathbb{E}X) \le 2 e^{-\frac{\ep^2 \mathbb{E}X-p't}{c}}$$
+which is $< \delta$ if $t=\omega(\frac{\lg(1/3)}{p \ep^2}) = \omega{\frac{m\lg (1/3)}{\ep^2}}$.
+
+%%%%%%%%%%%%%%%%%%%%%%
+\section{Semidefinite Programming}
+\subsection{SDP}
+
+$\mathbb{X}$ is an $n$ by $n$ matrix, min, $tr(C^TX)$ s.t. $\forall i=1,...,m, tr(A_i^TX) = b_i$ and $\mathbb{X}$ is positive semi definite $\mathbb{X} \succeq 0$. We can solve SDP up to $L$ bits of precision in time $poly(nmL)$, due to \cite{SDP}.
+
+We know $tr(A^TB) = \sum_{ij}A_{ij}B_{ij}$, and by definition, $\mathbb{X}$ is PSD if $\forall y \in \mathbb{R}^n, y^T \mathbb{X} y \ge 0$.
+
+{\em Claim:} the following are equivalent for symmetric $n\times n$ matrices $\mathbb{X}$.\footnote{Look up spectral theorem}
+
+\begin{enumerate}
+\item $\mathbb{X}$ is PSD
+\item all eigen values of $\mathbb{X} \ge a$. 
+\item can write $\mathbb{X} = m^Tm$ fir some $m \in \mathbb{R}^{n\times n}$.
+\end{enumerate}
+
+LP is a special case of SDP. For LP:  $min~c^TX$ s.t $Ax = b, x\ge 0$, the corresponding SDP is
+$$C + \left( \begin{array}{cccc}
+c_1 & 0 & 0 & 0\\
+0 & c_2 & 0 & 0\\
+0 & 0 & ...& 0\\
+0 & 0 & 0 & c_n \\
+ \end{array} \right) A_i=\left( \begin{array}{cccc}
+a_1 & 0 & 0 & 0\\
+0 & a_2 & 0 & 0\\
+0 & 0 & ...& 0\\
+0 & 0 & 0 & a_n \\
+ \end{array} \right) $$
+
+SDP $\iff$ VP (vector programming). To see this, a SDP of $\mathbb{X} = m^Tm = $ (gram matrix) $\Rightarrow \mathbb{X}_{ij} = <v_i,v_j> \Rightarrow tr(C^TX) = \sum_{ij} c_{ij} <v_i,v_j>$ is the same as a VP that minimizes $\sum_{ij}c_{i,j}<v_i,v_j>$ s..t for $k=1-m$, $\sum_{ij} Q_{ij}^{(k)} <v_i,v_j> = b_k$.
+
+\subsection{MaxCut}
+Input: graph $G = (V,E)$, goal is to find a cut $(S,V\setminus S$ maximizing number of edges join from $S$ to $V\setminus S$.
+
+The best algorithm so far, by \cite{GoemansW95} showed $\ge 0.878$ OPT. This number is $\underset{\theta \in[0,\pi]}{inf} \frac{2}{\pi}\frac{\theta}{1-cos(\theta)}$.
+
+The problem is formalized as 
+$$max\sum_{e \in E, e =(i,j)} \frac{1-x_ix_j}{2}$$
+$\forall i, x_i \in \{-1,1\}$. \\
+
+SDP relaxation: 
+$$max \sum_{e\in E e = (i,j)} \frac{1-<v_i,v_j>}{2}$$
+$\forall i <v_i,v_i> = 1$.
+\\
+
+Now we proceed to describe the GW Algorithm:
+\begin{enumerate}
+\item pick random $r \in \mathbb{R}^n$
+\item put vertex $i$ in $S$ if $sign(<r,v_i>)\ge 0$
+\item put vertex $i$ in $V\setminus S$ if $sign(<r,v_i>) < 0$
+\end{enumerate}
+
+$\mathbb{E}($size of cut$) = \sum_{e\in F, e=(i,j)} \mathbb{P}(v_i$ and $v_j$ are on opposite sides of $r)$, $\mathbb{P}(e$ separated$) = \frac{\theta}{\pi}$
+
+$$\frac{\mathbb{P}(\text{separated})}{(1-<v_i,v_j>)/2} = \frac{2}{\pi} \frac{\theta}{1-cos(\theta)}$$
+
+\bibliographystyle{alpha}
+
+
+
+\begin{thebibliography}{42}
+
+
+\bibitem{Lawler79}
+Eugene~Lawler.
+\newblock Fast Approximation Algorithms for Knapsack Problems.
+\newblock {\em Math. Oper. Res.}, 4(4):339--356, 1979.
+
+
+\bibitem{KarpLM89}
+Richard~Karp, Michael~Luby, and Neal~Madras.
+\newblock Monte-Carlo Approximation Algorithms for Enumeration Problems.
+\newblock {\em J. Algorithms}, 10(3):429--448, 1989.
+
+
+\bibitem{SDP}
+L.~Vandenberghe, S.~Boyd.
+\newblock Semidefinite Programming.
+\newblock {\em SIAM Review}, 38(1): 49-95, 1996.
+
+
+\bibitem{GoemansW95}
+Michel X. Goemans and David P. Williamson
+\newblock Improved Approximation Algorithms for Maximum Cut and Satisfiability Problems Using Semidefinite Programming
+\newblock {\em J. ACM}, 42(6):1115--1145, 1995.
+
+\end{thebibliography}
+
+\end{document}
+
+
+
+
+
+
+
+
