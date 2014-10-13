@@ -96,7 +96,7 @@ $$v(A) \ge \frac{1}{\alpha}v'(A) \ge \frac{1}{\alpha}v'(A^*) \ge v(A^*) - \frac{
 \subsection{Existence of FPTAS Algorithms}
 We don't always have a FPTAS algorithm. One example is the bin packing problem, which is defined as $n$ items with sizes $s_1, s_2,... s_n\in \{0,1\}$. Bins have capacity exactly $1$. The goal is to pack all items into as few bins as possible. FPTAS for bin packing use $\le (1+\ep) \alpha (OPT ~ \#\text{ of bins})$. Run time is $poly (n,\frac{1}{\ep})$ No FPTAS unless $P=NP$
 \begin{proof}
-If we have a FPTAS run it with $\ep << \frac{1}{n}$, giving $(1 + \ep)OPT=OPT+c$ where $c$ is some small constant. So we made FPTAS produce the optimum, which is not possible. Contradiction.
+If we have a FPTAS run it with $\ep \ll \frac{1}{n}$, giving $(1 + \ep)OPT=OPT+c$ where $c$ is some small constant. So we made FPTAS produce the optimum, which is not possible. Contradiction.
 \end{proof}
 The term we used when there is no FPTAS is when the problem is strongly NP-complete.
 
@@ -113,7 +113,7 @@ In fact there is a complexity class, $\#P$. DNF is $\#P-$Complete\footnote{The n
 
 The key idea is to randomly estimate the fraction. We have $n$ variables, $m$ clauses, some of $2^n$ variable assignments satisfy our DNF formula, let's say a $p$ fraction. We want to estimate $p$. Sample and see what empirical results' mean is. However this doesn't work. One bad example is $x_1\wedge x_2 \wedge ..., \wedge x_n$ . The core problem is that $p$ could be small, and the trick here is try to make it not that small.
 
-\subsection{KLM}
+\subsection{KLM \cite{KarpLM89}}
 
 Let $S_i$  be the set of assignments satisfying $C_i$, set $B = \cup_{i=1}^m S_i$, and we want to estimate $|B|$. Define $B' = \{(i,x) : \text{assignment $x$ satisfies $C_i$}\}$. $|B'| = \sum_{i=1}^m |S_i|$ hwere $|S_i| = 2^{n-(\#\text{ of literals in }C_i)}$. Let's estimate $p' = \frac{|B|}{|B'|}$. Note that $p' \ge \frac{1}{m}$. \\
 
@@ -134,7 +134,7 @@ In summary, the algorithm is:
 \subsubsection{Analysis}
 Using the Chernoff bound, let $X_1,...,X_t$ be s.t. $X_j = 1$ if $j$th sampled element is in $B$, and $0$ otherwise. Let $X=\sum_{i=1}^{t}{X_j}, \mathbb{E} X = p' \cdot t$
 $$\mathbb{P} (|X - \mathbb{E}X| > \ep \mathbb{E}X) \le 2 e^{-\frac{\ep^2 \mathbb{E}X-p't}{c}}$$
-which is $< \delta$ if $t=\omega(\frac{\lg(1/3)}{p \ep^2}) = \omega{\frac{m\lg (1/3)}{\ep^2}}$.
+which is $< \delta$ if $t=\Omega(\frac{\lg(1/\delta)}{p \ep^2}) = \Omega(\frac{m\lg (1/\delta)}{\ep^2})$.
 
 %%%%%%%%%%%%%%%%%%%%%%
 \section{Semidefinite Programming}
@@ -165,32 +165,38 @@ a_1 & 0 & 0 & 0\\
 0 & 0 & 0 & a_n \\
  \end{array} \right) $$
 
-SDP $\iff$ VP (vector programming). To see this, a SDP of $\mathbb{X} = m^Tm = $ (gram matrix) $\Rightarrow \mathbb{X}_{ij} = <v_i,v_j> \Rightarrow tr(C^TX) = \sum_{ij} c_{ij} <v_i,v_j>$ is the same as a VP that minimizes $\sum_{ij}c_{i,j}<v_i,v_j>$ s..t for $k=1-m$, $\sum_{ij} Q_{ij}^{(k)} <v_i,v_j> = b_k$.
+SDP $\iff$ VP (vector programming). To see this, a SDP of $\mathbb{X} = m^Tm = $ (gram matrix) $\Rightarrow \mathbb{X}_{ij} = \inprod{v_i,v_j} \Rightarrow tr(C^TX) = \sum_{ij} c_{ij} \inprod{v_i,v_j}$ is the same as a VP that minimizes $\sum_{ij}c_{i,j}\inprod{v_i,v_j}$ s..t for $k=1-m$, $\sum_{ij} Q_{ij}^{(k)} \inprod{v_i,v_j} = b_k$.
 
 \subsection{MaxCut}
-Input: graph $G = (V,E)$, goal is to find a cut $(S,V\setminus S$ maximizing number of edges join from $S$ to $V\setminus S$.
+Input: graph $G = (V,E)$, goal is to find a cut $(S,V\setminus S)$ maximizing number of edges with one endpoint in $S$ and the other in $V\setminus S$.
 
-The best algorithm so far, by \cite{GoemansW95} showed $\ge 0.878$ OPT. This number is $\underset{\theta \in[0,\pi]}{inf} \frac{2}{\pi}\frac{\theta}{1-cos(\theta)}$.
+The best algorithm so far, by \cite{GoemansW95}, is a randomized algorithm whicht in expectation cuts at least $\alpha\cdot \textsf{OPT}$ edges, where $\alpha = \underset{\theta \in[0,\pi)}{\inf} \frac{2}{\pi}\frac{\theta}{1-cos(\theta)} > 0.878$.
 
 The problem is formalized as 
 $$max\sum_{e \in E, e =(i,j)} \frac{1-x_ix_j}{2}$$
 $\forall i, x_i \in \{-1,1\}$. \\
 
 SDP relaxation: 
-$$max \sum_{e\in E e = (i,j)} \frac{1-<v_i,v_j>}{2}$$
-$\forall i <v_i,v_i> = 1$.
+$$max \sum_{e\in E, e = (i,j)} \frac{1-\inprod{v_i,v_j}}{2}$$
+$\forall i \inprod{v_i,v_i} = 1$.
 \\
 
 Now we proceed to describe the GW Algorithm:
 \begin{enumerate}
 \item pick random $r \in \mathbb{R}^n$
-\item put vertex $i$ in $S$ if $sign(<r,v_i>)\ge 0$
-\item put vertex $i$ in $V\setminus S$ if $sign(<r,v_i>) < 0$
+\item put vertex $i$ in $S$ if $sign(\inprod{r,v_i})\ge 0$
+\item put vertex $i$ in $V\setminus S$ if $sign(\inprod{r,v_i}) < 0$
 \end{enumerate}
 
-$\mathbb{E}($size of cut$) = \sum_{e\in F, e=(i,j)} \mathbb{P}(v_i$ and $v_j$ are on opposite sides of $r)$, $\mathbb{P}(e$ separated$) = \frac{\theta}{\pi}$
+Now let us analyze the expected number of edges cut by this algorithm. Let $\theta_{i,j}\in[0,\pi)$ denote the angle between vectors $v_i$ and $v_j$. Then
 
-$$\frac{\mathbb{P}(\text{separated})}{(1-<v_i,v_j>)/2} = \frac{2}{\pi} \frac{\theta}{1-cos(\theta)}$$
+$\E(\text{size of cut}) = \sum_{e\in E, e=(i,j)} \mathbb{P}(sign(\inprod{r,v_i})\neq sign(\inprod{r,v_j}) = \sum_{e\in E, e=(i,j)} \theta_{i,j}/\pi$. Meanwhile since the $v_i$ are unit vectors, we know $(1-\inprod{v_i,v_j})/2 = (1 - \cos(\theta))/2$. Therefore
+\begin{align*}
+\frac{\E(\text{size of cut})}{\textsf{OPT}_{SDP}} &= \frac{\sum_{\substack{e\in E\\ e=(i,j)}} \frac{\theta_{i,j}}{\pi}}{\sum_{\substack{e\in E\\e=(i,j)}} \frac{1 - \cos(\theta_{i,j})}{2}}\\
+{}&= \frac{\sum_{\substack{e\in E\\ e=(i,j)}} \frac{1 - \cos(\theta_{i,j})}{2} \cdot \left(\frac{2}{\pi}\cdot \frac{\theta_{i,j}}{1-\cos(\theta_{i,j})}\right)}{\sum_{\substack{e\in E\\e=(i,j)}} \frac{1 - \cos(\theta_{i,j})}{2}}\\
+{}&\ge \inf_{\theta\in[0,\pi)} \left(\frac{2}{\pi}\cdot \frac{\theta}{1-\cos(\theta)}\right) \cdot \frac{\sum_{\substack{e\in E\\ e=(i,j)}} \frac{1 - \cos(\theta_{i,j})}{2}}{\sum_{\substack{e\in E\\e=(i,j)}} \frac{1 - \cos(\theta_{i,j})}{2}}\\
+{}&\ge 0.878
+\end{align*}
 
 \bibliographystyle{alpha}
 
@@ -212,7 +218,7 @@ Richard~Karp, Michael~Luby, and Neal~Madras.
 
 
 \bibitem{SDP}
-L.~Vandenberghe, S.~Boyd.
+Lleven~Vandenberghe, Stephen~Boyd.
 \newblock Semidefinite Programming.
 \newblock {\em SIAM Review}, 38(1): 49-95, 1996.
 
