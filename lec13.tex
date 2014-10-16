@@ -1,0 +1,273 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{amsmath}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{13 --- October, 2014}{Fall 2014}{Prof.\ Jelani Nelson}{Vasileios Nakos}
+
+\section{Overview}
+
+In the last lecture we talked about FPTAS(Knapsack),FPRAS(DNF counting) and Semi Definite Programming(Max Cut approximation algorithm).
+
+In this lecture we are going to speak about Learning Topic Models. This is a guest Lecture by Rong Ge.
+
+\section{Brief Introduction}
+
+We are interested in two types of learning problems, the supervised and the unsupervised learning. An example of the supervised learning problem is the following: given a lot of e-mails can we decide which are spam and which not? The goal is to learn a function that determines if the e-mail is spam or not. In other words, we have points and some possible labels and when we are given a new data point we want to predict its label. In the unsupervised learning model there is no labeling. So what do we do?
+Our input is some data $x$, and we want to learn the "structure" of the data. In fact, there is the notion of clustering in our case: points are partitioned into clusters and points in the same cluster are consider to be somehow "similar".
+
+\section{Defining structure} We use a probabilistic model for this. The informal definition states that a probabilistic model is a function that maps a parameter $\theta$ to a data distribution $D(\theta)$.\\
+So, the simplest probabilistic model is a Gaussian variable. We just define its mean and its variance and sample points from this distribution. Here, these two quantities play the role of $\theta$. The corresponding learning problem is given enough points, find mean and variance of teh distribution. 
+
+A more complicated example is the mixture of Gaussians. In this case, there are $k$ Gaussians and each one is chosen with some probability, and then a point is sampled from that distribution. Then, the earning algorithm has to figure out which Gaussian it came from. The parameters here are:
+
+\begin{itemize}
+\item $k$ : the number of Gaussians
+\item $M_i$, $i \in [k]$: the means of the Gaussians
+\item $w_i$, $i \in [k]$: th weights of the Gaussians
+\end{itemize}
+
+We also note that Gaussians have the same covariance matrix.
+
+
+\section{Learning a probabilistic model}
+
+ Given polynomial number of samples from the distribution $D(\theta)$ with the unknown parameter $\theta$, we want to find (approximately) $\theta$ with high probability.
+
+
+In the maximum likelihood method, after seeing a data sample $v_1,..v_n$ we want to pick the parameter which is most likely to have generated this sample.
+ In fact, we want to maximize
+
+\[  max \sum_{i=1}^n logP_{\theta}(r_i)  \]
+ 
+and pick the argument that maximizes the above quantity.
+We note some ffacts about the maximum likelihood method:
+
+\begin{itemize}
+\item For a simple Gaussian it gives the mean of the samples
+
+\item The general case is NP-hard, as you can reduct $k$-means to it.
+
+\end{itemize}
+
+But how to deal with NP-hardness? The known ways are approximation algorithms, average case analysis, natural assumptions, or use of a heuristic algorithm. In fact our hope is to have heuristic algorithms that work in practice but we can also analyze them under natural assumptions or providing approximation guarantees, or doing some average case analysis.
+
+\subsection{Topic models}
+
+The goal is to learn thematic structure from large text copies. We can also use them to generate documents. We can do some simplifying assumptions about these models.\\
+One  such assumption that we consider natural is the "bag-of-words" assumption. In this assumption we don't care about the ordering of the words. We represent each text as a multiset of words disregarding grammar rules and word order. The topic then is a probability distribution over words.\\
+A document is a probability distributon over topics. A document is an $n \times k$ martix where each column is a topic, all entries are non-zero and the each column sums up to $1$. The probability that the $i$-th word is chosen from topic $j$ is the $(i,j)$ entry.\\
+
+There is a general recipe for generating documents:
+\begin{enumerate}
+\item {\em  } Pick length $N$.
+\item {\em  } Pick topics $W_1,..,W_k$, with probability $w_1,..,w_k$ respectively. $w_i \geq 0, \sum_{i=1}^k w_i = 1$
+\item {\em  }For each word ( $i=1$ to $N$) 
+	\begin{itemize}
+	\item 	Pick topic $t_i \in [k] \sim  \{ w_i \}$
+	\item 	Pick word $z_i \in [n] \sim \{ A_{.,t_i}  \}$.
+	\end{itemize}
+\end{enumerate}
+
+
+
+
+So, there are different methods of choosing the probabilities $w_i$, two of the most common ones being:
+
+\begin{itemize}
+\item Probabilistic latent semantic indexing (PLSI), by Christos H. Papadimitriou and
+               Prabhakar Raghavan and
+               Hisao Tamaki and
+               Santosh Vempala \cite{PRTV} 
+\item Latent Dirichlet Allocation (LDA) where $w \sim Dir(a)$, the Dirichlet diistribution, by David M. Blei and
+               Andrew Y. Ng and
+               Michael I. Jordan \cite{LDA}
+
+\end{itemize}
+
+\subsection{Non-negative matrix fatorization problem and Separability}
+
+Organize all the probabilities $Pr[z_i = v| document]$, the estimates, in this matrix. According to the process in the previous subsection we have that, 
+
+\[Pr[z_i = v| document] = \sum_{j=1}^k Pr[t_i=j|document] \cdot Pr[z_i=v|t_i=j] = \sum_{j=1}^k w_j A_{v,j}\] . So, writing the above equations in matrix form we get that $M = AW$, where $A \in \mathbb{R} ^{n\times k}, W \in \mathbb{R}^{k \times m}$.\\
+
+In the non-negative matrix factorization problem we are given $A \in \mathbb{R}^{n\times m}$ and we are asked to find $A \in \mathbb{R} ^{n\times k}, W \in \mathbb{R}^{k \times m}$ with non-negative entries such that $M=AW$. This problem is proved to be NP-hard.\\
+
+
+
+
+We now consider an assumption under which the above factorization can be computed in polynomial time. Donoho and Stodden in \cite{DonoVi} gave sufficient conditions for the forementioned factorization to be unique, but they gave no algorithm for this.  Sanjeev Arora ,
+               Rong Ge 
+               Ravindran Kannan,
+               Ankur Moitra in \cite{ProvMax} give the first polynomial time algorithm that assumes only one of this conditions are met, namely separability. \\
+               
+               
+The matrix $A \in \mathbb{R} ^{n\times k}$ is separable if for any column $j$ in $[k]$, there is a row $a_j \in [n]$ such that $Aa_{j},j =1 $ and $Aa_{j,l}= 0$ for $ l \neq j$. This means that for any topic, there is a word that only appears in this topic.
+
+
+Suppose now that we have a matrix that is separable. Then we have the following observations, since in the $(i,j)$-th entry of matrix $M$ we will have the inner product $<A_i,W_j>$:
+
+
+\begin{itemize}
+
+\item $M_{a_j,l} = <A_{a_j}, W_l > = W_{a_j,l} $, for all $j \in [k],l \in [m]$
+\item $M_{i,j} = \sum_{t=1}^k A_{i,t} W_{t,j}$, for all $j \in [m]$ and $ i \in [n]$ such that there exists no $l \in [k]$ such that $i = a_l$
+
+\end{itemize}
+
+We note the following lemma: We can rescale $M$ so that rows of $M,A,W$ sum up to $1$.
+Using this lemma and the above two observations we get that the rows of $M$ are either the rows of $W$ or are in the convex hull of the rows of $W$. So, we made a reduction to the following geometric problem: Given $n$ points $v_1,..v_n$ that are in the convex hull of $v_{a_1},...,v_{a_k}$ for unknown $a_1,..,a_k \in [n]$, we want to find $v_{a_1},...,v_{a_k}$. This problem is equivalent to the non-negative matrix factorization when assuming the separability of $A$. 
+
+We will give an algorithm that decides whether $v_i$ belongs to the convex hull of other ones. Suppose we have removed duplicate points. Then in order to find whether$ v \in convhull(v_1,..,v_{i-1},v_{i+1},...v_{n})$, we just need to solve the following linear program:
+
+
+
+
+
+$V_i = \sum_{j \neq i} a_jV_j$ \\
+$a_j \geq 0$\\
+$\sum_{j \neq i} = 1$.
+
+If it is not feasible then $v_i$ is the interior of the convex hull, otherwise it is on the convex hull. This algorithms appears in \cite{ProvMax}. 
+
+
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Hoff}
+Thomas-Hoffman
+\newblock Probabilistic Latent Semantic Analysis
+\newblock {\em CoRR}, abs/1301.6705, 2013.
+
+
+\bibitem{PRTV}
+Christos H. Papadimitriou and
+               Prabhakar Raghavan and
+               Hisao Tamaki and
+               Santosh Vempala
+\newblock Probabilistic Latent Semantic Analysis
+\newblock {\em J. Comput. Syst. Sci.}, abs/1301.6705, 2013.
+
+
+\bibitem{LDA}
+David M. Blei and
+               Andrew Y. Ng and
+               Michael I. Jordan
+\newblock Latent Dirichlet Allocation
+\newblock {\em Journal of Machine Learning Research}, {3} 993--1022, 2003.
+
+
+\bibitem{Vav}
+Stephen A. Vavasis
+\newblock On the Complexity of Nonnegative Matrix Factorization
+\newblock {\em {SIAM} Journal on Optimization}, volume 20, number 3,1364--1377,2009. 
+
+
+
+\bibitem{DonoVi}
+David L. Donoho and
+               Victoria Stodden
+\newblock When Does Non-Negative Matrix Factorization Give a Correct Decomposition
+               into Parts?
+\newblock {\em Advances in Neural Information Processing Systems 16 [Neural Information
+               Processing Systems, {NIPS} 2003, December 8-13, 2003, Vancouver and
+               Whistler, British Columbia, Canada]}, 2003.
+
+
+
+\bibitem{ArGe}
+Sanjeev Arora and
+               Rong Ge and
+               Yoni Halpern and
+               David M. Mimno and
+               Ankur Moitra and
+               David Sontag and
+               Yichen Wu and
+               Michael Zhu
+\newblock A Practical Algorithm for Topic Modeling with Provable Guarantees
+
+\newblock {\em CoRR}, abs/1212.4777
+
+
+
+
+\bibitem{ArGeMoi}
+Sanjeev Arora and
+               Rong Ge and
+               Ankur Moitra
+\newblock Learning Topic Models - Going beyond {SVD}
+
+\newblock {\em 53rd Annual {IEEE} Symposium on Foundations of Computer Science, {FOCS}
+               2012, New Brunswick, NJ, USA, October 20-23, 2012}, 1--10,2012
+
+
+
+
+\bibitem{ProvMax}
+Sanjeev Arora and
+               Rong Ge and
+               Ravindran Kannan and
+               Ankur Moitra
+\newblock Computing a nonnegative matrix factorization - provably
+
+\newblock {\em Proceedings of the 44th Symposium on Theory of Computing Conference,
+               {STOC} 2012, New York, NY, USA, May 19 - 22, 2012}, 145--162, 2012.
+
+
+
+\end{thebibliography}
+
+\end{document}
