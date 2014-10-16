@@ -336,10 +336,25 @@ y\ge 0
 \end{itemize}
 \end{itemize}
 
-Note that the primal and dual costs are equal. Now the primal is obviously feasible, but the dual would not be feasible. We are going to see next time, the dual constraint would be violated by at most  $\log n$ multiplicative factor. So after scaling down, we will get a feasible solution. This approach of scaling down to deal with dual feasibility violation is called ``dual fitting''. 
+Note that the primal and dual costs are equal. Now the primal is obviously feasible, but the dual would not be feasible. We are going to see next time, the dual constraint would be violated by at most  $\log n$ multiplicative factor. So after scaling down, we will get a feasible solution. This approach of scaling down to deal with dual feasibility violation is called ``dual fitting'' \cite{JainMMSV03}. 
 
 
 \begin{filecontents}{shortbib.bib}
+
+@article{JainMMSV03,
+  author    = {Kamal Jain and
+               Mohammad Mahdian and
+               Evangelos Markakis and
+               Amin Saberi and
+               Vijay V. Vazirani},
+  title     = {Greedy facility location algorithms analyzed using dual fitting with
+               factor-revealing {LP}},
+  journal   = {J. {ACM}},
+  year      = {2003},
+  volume    = {50},
+  number    = {6},
+  pages     = {795--824},
+}
 
 @article{karlin1994competitive,
   title={Competitive randomized algorithms for nonuniform problems},
